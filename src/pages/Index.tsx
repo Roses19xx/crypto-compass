@@ -44,7 +44,7 @@ const Index = () => {
         </div>
 
         {/* Cards */}
-        <div className="mb-8 grid gap-4">
+        <div className="mb-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {paginated.map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
