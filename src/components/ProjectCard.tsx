@@ -13,52 +13,46 @@ interface ProjectCardProps {
 
 const ProjectCard = ({ project }: ProjectCardProps) => {
   return (
-    <div className="group flex overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5">
-      {/* Logo area — 30% */}
+    <div className="group flex flex-col items-center rounded-2xl border bg-card p-5 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5">
+      {/* Logo */}
       <div
-        className="flex w-[30%] shrink-0 items-center justify-center"
-        style={{ background: `hsl(${project.logoColor} / 0.08)` }}
+        className="flex h-14 w-14 items-center justify-center rounded-xl text-sm font-bold mb-3"
+        style={{
+          background: `hsl(${project.logoColor} / 0.13)`,
+          color: `hsl(${project.logoColor})`,
+        }}
       >
-        <div
-          className="flex h-16 w-16 items-center justify-center rounded-2xl text-lg font-bold"
-          style={{
-            background: `hsl(${project.logoColor} / 0.15)`,
-            color: `hsl(${project.logoColor})`,
-          }}
-        >
-          {project.logoLetter}
-        </div>
+        {project.logoLetter}
       </div>
 
-      {/* Info area — 70% */}
-      <div className="flex flex-1 flex-col justify-center gap-2 px-5 py-4">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold leading-tight">{project.name}</h3>
-          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            {project.category}
-          </span>
-        </div>
-        <p className="text-sm text-muted-foreground leading-snug">{project.description}</p>
-        <div className="flex items-center gap-3 pt-1">
-          <a
-            href={project.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-          >
-            <ExternalLink className="h-3 w-3" />
-            Сайт
-          </a>
-          <a
-            href={project.twitter}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-medium text-foreground/70 hover:text-foreground transition-colors"
-          >
-            <XIcon />
-            Twitter/X
-          </a>
-        </div>
+      {/* Name */}
+      <h3 className="text-sm font-semibold leading-tight text-center mb-1">{project.name}</h3>
+
+      {/* Category */}
+      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground mb-3">
+        {project.category}
+      </span>
+
+      {/* Links */}
+      <div className="flex flex-col items-center gap-1.5">
+        <a
+          href={project.website}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Сайт
+        </a>
+        <a
+          href={project.twitter}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-medium text-foreground/70 hover:text-foreground transition-colors"
+        >
+          <XIcon />
+          Twitter/X
+        </a>
       </div>
     </div>
   );

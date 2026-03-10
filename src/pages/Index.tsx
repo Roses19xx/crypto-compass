@@ -23,9 +23,20 @@ const Index = () => {
       <main className="mx-auto max-w-6xl px-6 py-12">
         {/* Hero */}
         <div className="mb-12">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Отслеживай<br />
-            <span className="text-primary">лучшие дропы</span>
+          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl" style={{ letterSpacing: '-0.03em' }}>
+            <span style={{ color: '#659DBD', textShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>Следи за </span>
+            <span
+              className="inline-block"
+              style={{
+                color: '#bfa84f',
+                textShadow: '0 0 10px rgba(191,168,79,0.3), 0 1px 2px rgba(0,0,0,0.12)',
+              }}
+            >
+              Альфой
+            </span>
+            <br />
+            <span style={{ color: '#659DBD', textShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>и будь </span>
+            <span style={{ color: '#bfa84f', textShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>продуктивным</span>
           </h1>
           <p className="mt-4 max-w-lg text-muted-foreground">
             Находи перспективные крипто-проекты, следи за аирдропами и ретродропами в одном месте.
@@ -33,7 +44,7 @@ const Index = () => {
         </div>
 
         {/* Cards */}
-        <div className="mb-8 grid gap-4">
+        <div className="mb-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {paginated.map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
