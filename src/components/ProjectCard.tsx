@@ -1,59 +1,131 @@
-import { ExternalLink } from "lucide-react";
-import type { CryptoProject } from "@/data/projects";
-
-const XIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current" aria-hidden="true">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
+import { ExternalLink, Twitter, Plus, Trash2, Pencil, Check } from "lucide-react";
 
 interface ProjectCardProps {
-  project: CryptoProject;
+  project: any;
+  onClick: () => void;
+  onEdit?: (project: any) => void;
+  onDelete?: (project: any) => void;
+  onAdd?: () => void;
+  isAdded?: boolean;
 }
 
-const ProjectCard = ({ project }: ProjectCardProps) => {
+const ProjectCard = ({ project, onClick, onEdit, onDelete, onAdd, isAdded }: ProjectCardProps) => {
+  const isWatchlist = window.location.pathname.includes('watchlist');
+
   return (
-    <div className="group flex flex-col items-center rounded-2xl border bg-card p-5 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5">
-      {/* Logo */}
+    <div
+      onClick={onClick}
+      // ДОБАВЛЕНО flex-1 h-full w-full: заставляет карточку всегда заполнять 100% высоты
+      className="group relative flex items-center h-full w-full p-4 sm:p-5 bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl rounded-[20px] sm:rounded-[24px] transition-all duration-500 cursor-pointer overflow-hidden border border-white/[0.05] hover:border-white/[0.15] shadow-lg flex-1"
+    >
+      <div className="absolute top-0 -left-[150%] w-full h-full bg-gradient-to-r from-transparent via-white/[0.1] to-transparent transform -skew-x-12 group-hover:left-[150%] transition-all duration-[1.5s] ease-in-out pointer-events-none z-0"></div>
+
+      {/* 1. АВАТАРКА */}
       <div
-        className="flex h-14 w-14 items-center justify-center rounded-xl text-sm font-bold mb-3"
-        style={{
-          background: `hsl(${project.logoColor} / 0.13)`,
-          color: `hsl(${project.logoColor})`,
-        }}
+        className="relative z-10 w-12 h-12 sm:w-[60px] sm:h-[60px] rounded-[14px] flex items-center justify-center flex-shrink-0 overflow-hidden bg-white/5 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] transition-transform duration-500 group-hover:scale-105"
+        style={!project.logo ? { backgroundColor: `hsl(${project.logoColor || '0 0% 15%'})` } : {}}
       >
-        {project.logoLetter}
+        {project.logo ? (
+          <img src={project.logo} alt={project.name} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-[#EBEBF5] text-lg sm:text-xl font-bold uppercase tracking-widest">
+            {project.logoLetter || "??"}
+          </span>
+        )}
       </div>
 
-      {/* Name */}
-      <h3 className="text-sm font-semibold leading-tight text-center mb-1">{project.name}</h3>
+      {/* 2. ИНФОРМАЦИЯ */}
+      {/* ДОБАВЛЕНО min-w-0: не дает длинному тексту сломать ширину/высоту карточки */}
+      <div className="relative z-10 flex flex-col justify-center ml-4 sm:ml-5 flex-grow overflow-hidden min-w-0">
 
-      {/* Category */}
-      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground mb-3">
-        {project.category}
-      </span>
+        <div className="flex items-center gap-2 mb-1">
+          {isWatchlist && project.tier ? (
+            <span className="text-[10px] sm:text-[11px] font-medium text-[#8E8E93] uppercase tracking-wider">
+              Tier {project.tier}
+            </span>
+          ) : project.category && (
+            <span className="text-[10px] sm:text-[11px] font-medium text-[#8E8E93] uppercase tracking-wider">
+              {project.category}
+            </span>
+          )}
+        </div>
 
-      {/* Links */}
-      <div className="flex flex-col items-center gap-1.5">
-        <a
-          href={project.website}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        <h3
+          className="text-lg sm:text-xl font-semibold text-[#FFFFFF] tracking-tight truncate leading-tight mb-2"
+          style={{ fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
         >
-          <ExternalLink className="h-3 w-3" />
-          Сайт
-        </a>
-        <a
-          href={project.twitter}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs font-medium text-foreground/70 hover:text-foreground transition-colors"
-        >
-          <XIcon />
-          Twitter/X
-        </a>
+          {project.name}
+        </h3>
+
+        <div className="flex items-center gap-3 sm:gap-4">
+          <a
+            href={project.twitter}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1.5 text-[#8E8E93] hover:text-[#FFFFFF] transition-colors text-[11px] sm:text-xs font-medium"
+          >
+            <Twitter className="w-3.5 h-3.5" />
+            <span>Twitter</span>
+          </a>
+          <a
+            href={project.website}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1.5 text-[#8E8E93] hover:text-[#FFFFFF] transition-colors text-[11px] sm:text-xs font-medium"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span>Website</span>
+          </a>
+        </div>
       </div>
+
+      {/* 3. КНОПКИ ДЕЙСТВИЙ */}
+      <div className="relative z-10 flex flex-col items-end justify-center gap-2 ml-3 flex-shrink-0">
+
+        {!isWatchlist && (
+          isAdded ? (
+            <div
+              className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 backdrop-blur-sm shadow-[0_0_15px_rgba(16,185,129,0.15)] transition-all duration-500"
+              title="Added to Watchlist"
+            >
+              <Check className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5px]" />
+            </div>
+          ) : (
+            onAdd && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdd();
+                }}
+                className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white text-white hover:text-black transition-all duration-300 backdrop-blur-sm border border-white/10"
+                title="Add to Watchlist"
+              >
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2px]" />
+              </button>
+            )
+          )
+        )}
+
+        {isWatchlist && onEdit && onDelete && (
+          <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(project); }}
+              className="p-1.5 text-[#8E8E93] hover:text-[#FFFFFF] transition-colors"
+            >
+              <Pencil className="w-[16px] h-[16px]" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(project); }}
+              className="p-1.5 text-[#8E8E93] hover:text-[#FF453A] transition-colors"
+            >
+              <Trash2 className="w-[16px] h-[16px]" />
+            </button>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 };

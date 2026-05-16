@@ -1,74 +1,22 @@
-import { Link, useLocation } from "react-router-dom";
-
 const Navbar = () => {
-  const { pathname } = useLocation();
-
   return (
-    <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        {/* Brand */}
-        <Link to="/" className="flex items-center gap-2.5 group">
-          <span
-            className="flex items-center justify-center rounded-lg text-sm font-extrabold tracking-tight"
-            style={{
-              background: 'linear-gradient(135deg, #659DBD, #4a8aad)',
-              color: '#FBEEC1',
-              width: 36,
-              height: 36,
-              textShadow: '0 1px 2px rgba(0,0,0,0.25)',
-              boxShadow: '0 0 0 1.5px rgba(0,0,0,0.12)',
-              fontSize: 15,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            DB
-          </span>
-          <span className="text-xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.03em' }}>
-            <span
-              className="inline-block"
-              style={{
-                color: '#659DBD',
-                textShadow: '0 0 8px rgba(101,157,189,0.35), 0 1px 1px rgba(0,0,0,0.15)',
-                filter: 'blur(0.3px)',
-                fontStyle: 'italic',
-                marginRight: 1,
-              }}
-            >
-              D
-            </span>
-            <span style={{ color: '#659DBD', textShadow: '0 1px 1px rgba(0,0,0,0.1)' }}>rop</span>
-            <span style={{ color: '#bfa84f', textShadow: '0 1px 1px rgba(0,0,0,0.1)' }}>Board</span>
-          </span>
-        </Link>
+    <nav className="sticky top-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-lg px-6 py-6 border-b border-white/5">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
 
-        {/* Centered Nav */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
-          <Link
-            to="/"
-            className="rounded-full px-5 py-2 text-sm font-semibold transition-colors"
-            style={
-              pathname === "/"
-                ? { background: '#659DBD', color: '#FBEEC1', textShadow: '0 1px 1px rgba(0,0,0,0.15)' }
-                : { color: '#659DBD' }
-            }
-          >
-            Главная
-          </Link>
-          <Link
-            to="/watchlist"
-            className="rounded-full px-5 py-2 text-sm font-semibold transition-colors hover:bg-secondary"
-            style={
-              pathname === "/watchlist"
-                ? { background: '#659DBD', color: '#FBEEC1', textShadow: '0 1px 1px rgba(0,0,0,0.15)' }
-                : { color: '#659DBD' }
-            }
-          >
-            Вотчлист
-          </Link>
+        {/* Логотип (Фильтры удалены, теперь цвет оригинальный) */}
+        <div className="flex items-center">
+          <a href="/" className="transition-opacity hover:opacity-70">
+            <img src="/logo.png" alt="Logo" className="h-8 sm:h-10 object-contain" />
+          </a>
         </div>
 
-        {/* Spacer for balance */}
-        <div className="w-[140px]" />
+        <div className="flex items-center gap-6 sm:gap-10">
+          <a href="/" className="text-[10px] sm:text-xs font-semibold text-white/50 hover:text-white uppercase tracking-[0.2em] transition-colors">EXPLORE</a>
+          <a href="/web3-projects" className="text-[10px] sm:text-xs font-semibold text-white/50 hover:text-white uppercase tracking-[0.2em] transition-colors">WEB3 PROJECTS</a>
+          <a href="/watchlist" className="text-[10px] sm:text-xs font-semibold text-white/50 hover:text-white uppercase tracking-[0.2em] transition-colors">WATCHLIST</a>
+        </div>
+
+        <div className="hidden sm:block w-[60px]"></div>
       </div>
     </nav>
   );
