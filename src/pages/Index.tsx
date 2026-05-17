@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import { LayoutGrid, ArrowRightLeft, Landmark, ArrowUpRight, ListTodo } from "lucide-react";
+import { AdminLogin } from '../components/AdminLogin';
 
 const Index = () => {
   const cards = [
@@ -68,8 +69,8 @@ const Index = () => {
               key={index}
               href={card.isActive ? card.link : undefined}
               className={`group relative block w-full h-[280px] sm:h-[360px] rounded-[32px] overflow-hidden border transition-all duration-500 transform-gpu ${card.isActive
-                  ? "cursor-pointer border-white/10 hover:border-white/30 hover:shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:-translate-y-1"
-                  : "cursor-default border-white/10 opacity-95"
+                ? "cursor-pointer border-white/10 hover:border-white/30 hover:shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:-translate-y-1"
+                : "cursor-default border-white/10 opacity-95"
                 }`}
             >
               <div className="absolute inset-0 z-0 bg-[#161618]">
@@ -112,6 +113,7 @@ const Index = () => {
           ))}
         </div>
       </main>
+      <AdminLogin />
     </div>
   );
 };
