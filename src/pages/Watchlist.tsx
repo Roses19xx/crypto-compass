@@ -146,7 +146,6 @@ const Watchlist = () => {
                   setDraggedId(null);
                   setDragOverId(null);
                 }}
-                // ИСПРАВЛЕНИЕ ЗДЕСЬ: добавлены flex flex-col h-full w-full
                 className={`flex flex-col h-full w-full transition-all duration-300 cursor-grab active:cursor-grabbing
                   ${draggedId === project.id ? 'opacity-40 scale-95' : ''} 
                   ${dragOverId === project.id && draggedId !== project.id ? 'scale-105 z-10' : ''}
@@ -155,8 +154,9 @@ const Watchlist = () => {
                 <ProjectCard
                   project={project}
                   onClick={() => setSelectedProject(project)}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
+                  /* ВОТ ЭТИ ДВЕ СТРОЧКИ УБИРАЮТ ОШИБКУ TS2739 */
+                  onAdd={(e) => e.stopPropagation()}
+                  isAdded={true}
                 />
               </div>
             ))}
