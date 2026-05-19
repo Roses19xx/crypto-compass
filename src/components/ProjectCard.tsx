@@ -11,24 +11,41 @@ const ProjectCard = ({ project, onClick, onAdd, isAdded }: ProjectCardProps) => 
   return (
     <div
       onClick={onClick}
-      className="group relative flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 hover:border-white/10 rounded-[24px] cursor-pointer transition-all hover:bg-white/[0.04]"
+      className="
+        group relative flex items-center justify-between p-5 
+        bg-white/[0.02] border border-white/5 rounded-[24px] cursor-pointer 
+        /* --- ПРЕМИАЛЬНАЯ АНИМАЦИЯ --- */
+        transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] 
+        hover:-translate-y-1.5 
+        hover:border-white/15 
+        hover:bg-white/[0.05] 
+        hover:shadow-[0_12px_40px_-10px_rgba(255,255,255,0.08)]
+      "
     >
       <div className="flex items-center gap-4 min-w-0">
-        {/* ЛОГОТИП */}
+        {/* ЛОГОТИП (С легким увеличением при наведении на карточку) */}
         <div
           className="w-14 h-14 rounded-[16px] flex items-center justify-center flex-shrink-0 overflow-hidden bg-white/5 border border-white/10"
           style={{ backgroundColor: `hsl(${project.logoColor || '0 0% 15%'})` }}
         >
           {project.logo ? (
-            <img src={project.logo} alt={project.name} className="w-full h-full object-cover" />
+            <img
+              src={project.logo}
+              alt={project.name}
+              className="w-full h-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:scale-110"
+            />
           ) : (
-            <span className="text-white/80 text-xl font-bold uppercase tracking-wider">{project.logoLetter || project.name?.charAt(0)}</span>
+            <span className="text-white/80 text-xl font-bold uppercase tracking-wider transition-transform duration-500 group-hover:scale-110">
+              {project.logoLetter || project.name?.charAt(0)}
+            </span>
           )}
         </div>
 
         {/* ИНФОРМАЦИЯ */}
         <div className="flex flex-col min-w-0">
-          <h3 className="text-[17px] font-bold text-white truncate mb-1.5 tracking-tight">{project.name}</h3>
+          <h3 className="text-[17px] font-bold text-white truncate mb-1.5 tracking-tight group-hover:text-white/90 transition-colors">
+            {project.name}
+          </h3>
 
           <div className="flex items-center gap-3">
             {project.website && (
@@ -71,12 +88,12 @@ const ProjectCard = ({ project, onClick, onAdd, isAdded }: ProjectCardProps) => 
       {/* КНОПКА ADD TO WATCHLIST */}
       <button
         onClick={(e) => {
-          e.stopPropagation(); // Чтобы при клике на "+" не открывалась сама карточка
+          e.stopPropagation();
           onAdd(e);
         }}
-        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ml-4 ${isAdded
+        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0 ml-4 group-hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] ${isAdded
           ? "bg-[#32D74B]/20 text-[#32D74B]"
-          : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
+          : "bg-white/5 text-white/50 hover:bg-white/15 hover:text-white"
           }`}
       >
         {isAdded ? <Check className="w-4 h-4" strokeWidth={3} /> : <Plus className="w-4 h-4" />}

@@ -17,6 +17,8 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
 
     const [editName, setEditName] = useState("");
     const [editCategory, setEditCategory] = useState("");
+    const [editLogo, setEditLogo] = useState("");
+    const [showLogoInput, setShowLogoInput] = useState(false); // Стейт для красивого инпута
     const [editWebsite, setEditWebsite] = useState("");
     const [editTwitter, setEditTwitter] = useState("");
     const [editDiscord, setEditDiscord] = useState("");
@@ -40,6 +42,7 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
     const startEditing = () => {
         setEditName(localProject.name || "");
         setEditCategory(localProject.category || "");
+        setEditLogo(localProject.logo || "");
         setEditWebsite(localProject.website || "");
         setEditTwitter(localProject.twitter || "");
         setEditDiscord(localProject.discord || "");
@@ -47,6 +50,11 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         setEditEcosystem(localProject.ecosystem || []);
         setIsEditing(true);
     };
+
+    const cancelEditing = () => {
+        setIsEditing(false);
+        setShowLogoInput(false);
+    }
 
     const handleSaveChanges = async () => {
         if (!editName.trim()) {
@@ -57,6 +65,7 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         const updatedData = {
             name: editName.trim(),
             category: editCategory || null,
+            logo: editLogo.trim() || null,
             website: editWebsite.trim(),
             twitter: editTwitter.trim(),
             discord: editDiscord.trim(),
@@ -71,6 +80,7 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         } else {
             setLocalProject({ ...localProject, ...updatedData });
             setIsEditing(false);
+            setShowLogoInput(false);
             if (onUpdate) onUpdate({ ...localProject, ...updatedData });
         }
     };
@@ -110,6 +120,8 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         return { icon, title: displayTitle || link.url };
     };
 
+    const currentLogo = isEditing ? editLogo : localProject.logo;
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/40 backdrop-blur-md transition-opacity duration-300">
             <div className="relative w-full max-w-3xl max-h-[90vh] bg-[#0a0a0c] border border-white/10 rounded-[32px] overflow-hidden flex flex-col shadow-[0_0_80px_rgba(0,0,0,0.8)]" onClick={(e) => e.stopPropagation()}>
@@ -120,11 +132,37 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
 
                 <div className="flex-shrink-0 px-8 pt-8 pb-6 border-b border-white/5">
                     <div className="flex items-start gap-6">
-                        <div className="w-20 h-20 rounded-[20px] flex items-center justify-center flex-shrink-0 overflow-hidden bg-white/5 border border-white/10" style={{ backgroundColor: `hsl(${localProject.logoColor || '0 0% 15%'})` }}>
-                            {localProject.logo ? (
-                                <img src={localProject.logo} alt={localProject.name} className="w-full h-full object-cover" />
-                            ) : (
-                                <span className="text-white/80 text-2xl font-bold uppercase tracking-widest">{localProject.logoLetter || localProject.name.charAt(0)}</span>
+
+                        {/* КЛИКАБЕЛЬНЫЙ КВАДРАТ И СТИЛИЗОВАННЫЙ ИНПУТ В РЕЖИМЕ РЕДАКТИРОВАНИЯ */}
+                        <div className="relative flex-shrink-0">
+                            <div
+                                onClick={() => isEditing && setShowLogoInput(!showLogoInput)}
+                                className={`w-20 h-20 rounded-[20px] flex items-center justify-center overflow-hidden bg-white/5 border border-white/10 transition-all ${isEditing ? 'cursor-pointer hover:border-white/20 hover:bg-white/10 shadow-lg' : ''}`}
+                                style={!currentLogo ? { backgroundColor: `hsl(${localProject.logoColor || '0 0% 15%'})` } : {}}
+                            >
+                                {currentLogo ? (
+                                    <img src={currentLogo} alt={localProject.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-white/80 text-2xl font-bold uppercase tracking-widest">{localProject.logoLetter || localProject.name?.charAt(0) || "L"}</span>
+                                )}
+                            </div>
+
+                            {/* Красивый выпадающий инпут */}
+                            {isEditing && showLogoInput && (
+                                <div className="absolute top-full left-0 mt-3 z-50 w-64 bg-[#141416] border border-white/10 rounded-2xl p-2 shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
+                                    <div className="flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-xl px-3 py-2.5 focus-within:border-white/20 transition-colors">
+                                        <LinkIcon className="w-4 h-4 text-white/40 flex-shrink-0" />
+                                        <input
+                                            type="text"
+                                            placeholder="Paste new Logo URL..."
+                                            value={editLogo}
+                                            onChange={e => setEditLogo(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') setShowLogoInput(false); }}
+                                            className="bg-transparent text-xs text-white outline-none w-full placeholder-white/30"
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
                             )}
                         </div>
 
@@ -297,7 +335,7 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                     <button onClick={handleSaveChanges} className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 border border-white/10">
                                         <Save size={14} /> Save Changes
                                     </button>
-                                    <button onClick={() => setIsEditing(false)} className="bg-white/5 hover:bg-white/10 text-white/50 px-4 rounded-xl font-medium text-xs transition-all">
+                                    <button onClick={cancelEditing} className="bg-white/5 hover:bg-white/10 text-white/50 px-4 rounded-xl font-medium text-xs transition-all">
                                         Cancel
                                     </button>
                                 </div>

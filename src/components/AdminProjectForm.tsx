@@ -12,6 +12,8 @@ interface AdminProjectFormProps {
 const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
     const [name, setName] = useState("");
     const [category, setCategory] = useState("");
+    const [logo, setLogo] = useState("");
+    const [showLogoInput, setShowLogoInput] = useState(false); // Стейт для красивого инпута
     const [website, setWebsite] = useState("");
     const [twitter, setTwitter] = useState("");
     const [discord, setDiscord] = useState("");
@@ -39,6 +41,7 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
         const newProject = {
             name: name.trim(),
             category: category || null,
+            logo: logo.trim() || null,
             website: website.trim(),
             twitter: twitter.trim(),
             discord: discord.trim(),
@@ -67,8 +70,37 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
 
                 <div className="flex-shrink-0 px-8 pt-8 pb-6 border-b border-white/5">
                     <div className="flex items-start gap-6">
-                        <div className="w-20 h-20 rounded-[20px] flex items-center justify-center flex-shrink-0 bg-white/5 border border-white/10">
-                            <span className="text-white/30 text-xs font-medium">Logo</span>
+
+                        {/* КЛИКАБЕЛЬНЫЙ КВАДРАТ И СТИЛИЗОВАННЫЙ ИНПУТ */}
+                        <div className="relative flex-shrink-0">
+                            <div
+                                onClick={() => setShowLogoInput(!showLogoInput)}
+                                className="w-20 h-20 rounded-[20px] flex items-center justify-center bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all overflow-hidden group shadow-lg"
+                            >
+                                {logo ? (
+                                    <img src={logo} alt="Logo preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-white/30 text-xs font-medium group-hover:text-white/60 transition-colors">Add Logo</span>
+                                )}
+                            </div>
+
+                            {/* Красивый выпадающий инпут вместо колхозного prompt */}
+                            {showLogoInput && (
+                                <div className="absolute top-full left-0 mt-3 z-50 w-64 bg-[#141416] border border-white/10 rounded-2xl p-2 shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
+                                    <div className="flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-xl px-3 py-2.5 focus-within:border-white/20 transition-colors">
+                                        <LinkIcon className="w-4 h-4 text-white/40 flex-shrink-0" />
+                                        <input
+                                            type="text"
+                                            placeholder="Paste Logo URL..."
+                                            value={logo}
+                                            onChange={e => setLogo(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') setShowLogoInput(false); }}
+                                            className="bg-transparent text-xs text-white outline-none w-full placeholder-white/30"
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex flex-col justify-center pt-1 w-full">
@@ -90,7 +122,6 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                                 </select>
                             </div>
 
-                            {/* ВОТ ТУТ ВЕРНУЛ ТВОЙ ОРИГИНАЛЬНЫЙ ДИЗАЙН 3 КОЛОНОК */}
                             <div className="grid grid-cols-3 gap-4 w-full">
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Website URL</label>
