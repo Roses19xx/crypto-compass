@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { X, Twitter, Link as LinkIcon, Globe, Trash2, ChevronDown, Layers } from "lucide-react";
+import { X, Twitter, Link as LinkIcon, Globe, Trash2, ChevronDown, Layers, GripVertical } from "lucide-react";
 import { supabase } from "../supabase";
 
 const CATEGORIES = ["Prediction Markets", "Perp", "Chains", "AI", "NFT", "DePIN", "SocialFi", "GameFi"];
+const TIERS = ["S+", "1", "2", "3"];
 
 interface AdminProjectFormProps {
     onClose: () => void;
@@ -12,8 +13,9 @@ interface AdminProjectFormProps {
 const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
     const [name, setName] = useState("");
     const [category, setCategory] = useState("");
+    const [tier, setTier] = useState("3");
     const [logo, setLogo] = useState("");
-    const [showLogoInput, setShowLogoInput] = useState(false); // Стейт для красивого инпута
+    const [showLogoInput, setShowLogoInput] = useState(false);
     const [website, setWebsite] = useState("");
     const [twitter, setTwitter] = useState("");
     const [discord, setDiscord] = useState("");
@@ -26,8 +28,44 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
         ecosystem: true,
     });
 
+    // СОСТОЯНИЯ ДЛЯ ПЕРЕТАСКИВАНИЯ (DRAG & DROP)
+    const [draggedLinkIndex, setDraggedLinkIndex] = useState<number | null>(null);
+    const [draggedEcoIndex, setDraggedEcoIndex] = useState<number | null>(null);
+
     const toggleSection = (section: string) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
+
+    // ЛОГИКА DRAG & DROP
+    const handleDragStart = (e: React.DragEvent, index: number, type: 'link' | 'eco') => {
+        if (type === 'link') setDraggedLinkIndex(index);
+        else setDraggedEcoIndex(index);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault(); // Обязательно для разрешения сброса
+    };
+
+    const handleDrop = (e: React.DragEvent, dropIndex: number, type: 'link' | 'eco') => {
+        e.preventDefault();
+        if (type === 'link' && draggedLinkIndex !== null) {
+            const newList = [...allLinks];
+            const [draggedItem] = newList.splice(draggedLinkIndex, 1);
+            newList.splice(dropIndex, 0, draggedItem);
+            setAllLinks(newList);
+            setDraggedLinkIndex(null);
+        } else if (type === 'eco' && draggedEcoIndex !== null) {
+            const newList = [...ecosystem];
+            const [draggedItem] = newList.splice(draggedEcoIndex, 1);
+            newList.splice(dropIndex, 0, draggedItem);
+            setEcosystem(newList);
+            setDraggedEcoIndex(null);
+        }
+    };
+
+    const handleDragEnd = () => {
+        setDraggedLinkIndex(null);
+        setDraggedEcoIndex(null);
     };
 
     const handlePublish = async () => {
@@ -41,6 +79,7 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
         const newProject = {
             name: name.trim(),
             category: category || null,
+            tier: tier,
             logo: logo.trim() || null,
             website: website.trim(),
             twitter: twitter.trim(),
@@ -71,7 +110,6 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                 <div className="flex-shrink-0 px-8 pt-8 pb-6 border-b border-white/5">
                     <div className="flex items-start gap-6">
 
-                        {/* КЛИКАБЕЛЬНЫЙ КВАДРАТ И СТИЛИЗОВАННЫЙ ИНПУТ */}
                         <div className="relative flex-shrink-0">
                             <div
                                 onClick={() => setShowLogoInput(!showLogoInput)}
@@ -84,7 +122,6 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                                 )}
                             </div>
 
-                            {/* Красивый выпадающий инпут вместо колхозного prompt */}
                             {showLogoInput && (
                                 <div className="absolute top-full left-0 mt-3 z-50 w-64 bg-[#141416] border border-white/10 rounded-2xl p-2 shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
                                     <div className="flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-xl px-3 py-2.5 focus-within:border-white/20 transition-colors">
@@ -104,7 +141,7 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                         </div>
 
                         <div className="flex flex-col justify-center pt-1 w-full">
-                            <div className="flex gap-3 w-full max-w-md mb-6">
+                            <div className="flex gap-3 w-full max-w-md mb-3">
                                 <input
                                     type="text"
                                     placeholder="Project Name..."
@@ -120,6 +157,20 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                                     <option value="">No Tag</option>
                                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
+                            </div>
+
+                            <div className="flex items-center gap-2 mb-5">
+                                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mr-1">Project Tier:</span>
+                                {TIERS.map(t => (
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        onClick={() => setTier(t)}
+                                        className={`px-2.5 py-1 rounded-[8px] text-[10px] font-black tracking-wider transition-all border ${tier === t ? "bg-white text-black border-transparent shadow-[0_0_10px_rgba(255,255,255,0.15)]" : "bg-white/5 text-white/40 border-white/10 hover:border-white/20 hover:text-white"}`}
+                                    >
+                                        TIER {t}
+                                    </button>
+                                ))}
                             </div>
 
                             <div className="grid grid-cols-3 gap-4 w-full">
@@ -152,6 +203,8 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
 
                 <div className="overflow-y-auto px-8 pt-6 pb-8 space-y-5 custom-scrollbar">
                     <div className="bg-white/[0.02] border border-white/5 rounded-[24px] overflow-hidden flex flex-col">
+
+                        {/* ALL LINKS SECTION */}
                         <div className="border-b border-white/5 last:border-0 flex flex-col">
                             <button onClick={() => toggleSection('links')} className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors focus:outline-none">
                                 <div className="flex items-center gap-3">
@@ -163,14 +216,30 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                             <div className={`grid transition-all duration-300 ease-in-out ${openSections.links ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
                                 <div className="overflow-hidden px-5 pb-4 space-y-2">
                                     {allLinks.map((link, i) => (
-                                        <div key={link.id} className="flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1">
+                                        <div
+                                            key={link.id}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, i, 'link')}
+                                            onDragOver={handleDragOver}
+                                            onDrop={(e) => handleDrop(e, i, 'link')}
+                                            onDragEnd={handleDragEnd}
+                                            className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedLinkIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
+                                        >
+                                            {/* ИКОНКА DRAG & DROP */}
+                                            <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
+                                                <GripVertical className="w-4 h-4" />
+                                            </div>
+
                                             <input placeholder="Link Name" className="w-1/3 bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={link.title} onChange={e => {
                                                 const val = [...allLinks]; val[i].title = e.target.value; setAllLinks(val);
                                             }} />
                                             <input placeholder="URL" className="flex-grow bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={link.url} onChange={e => {
                                                 const val = [...allLinks]; val[i].url = e.target.value; setAllLinks(val);
                                             }} />
-                                            <button type="button" onClick={() => setAllLinks(allLinks.filter(l => l.id !== link.id))} className="text-red-500/50 hover:text-red-500 p-1 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+
+                                            <button type="button" onClick={() => setAllLinks(allLinks.filter(l => l.id !== link.id))} className="p-1 pr-2 text-red-500/50 hover:text-red-500 transition-colors">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     ))}
                                     <button type="button" onClick={() => setAllLinks([...allLinks, { id: Date.now().toString(), title: '', url: '' }])} className="text-xs text-white/40 hover:text-white flex items-center gap-1 pt-1 font-semibold transition-colors">+ Add Link</button>
@@ -178,6 +247,7 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                             </div>
                         </div>
 
+                        {/* ECOSYSTEM SECTION */}
                         <div className="border-b border-white/5 last:border-0 flex flex-col">
                             <button onClick={() => toggleSection('ecosystem')} className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors focus:outline-none">
                                 <div className="flex items-center gap-3">
@@ -189,7 +259,20 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                             <div className={`grid transition-all duration-300 ease-in-out ${openSections.ecosystem ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
                                 <div className="overflow-hidden px-5 pb-4 space-y-2">
                                     {ecosystem.map((eco, i) => (
-                                        <div key={eco.id} className="flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1">
+                                        <div
+                                            key={eco.id}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, i, 'eco')}
+                                            onDragOver={handleDragOver}
+                                            onDrop={(e) => handleDrop(e, i, 'eco')}
+                                            onDragEnd={handleDragEnd}
+                                            className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedEcoIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
+                                        >
+                                            {/* ИКОНКА DRAG & DROP */}
+                                            <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
+                                                <GripVertical className="w-4 h-4" />
+                                            </div>
+
                                             <input placeholder="Service" className="w-1/4 bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={eco.label} onChange={e => {
                                                 const val = [...ecosystem]; val[i].label = e.target.value; setEcosystem(val);
                                             }} />
@@ -199,7 +282,10 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                                             <input placeholder="URL" className="flex-grow bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={eco.url} onChange={e => {
                                                 const val = [...ecosystem]; val[i].url = e.target.value; setEcosystem(val);
                                             }} />
-                                            <button type="button" onClick={() => setEcosystem(ecosystem.filter(e => e.id !== eco.id))} className="text-red-500/50 hover:text-red-500 p-1 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+
+                                            <button type="button" onClick={() => setEcosystem(ecosystem.filter(e => e.id !== eco.id))} className="p-1 pr-2 text-red-500/50 hover:text-red-500 transition-colors">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     ))}
                                     <button type="button" onClick={() => setEcosystem([...ecosystem, { id: Date.now().toString(), label: '', tag: '', url: '' }])} className="text-xs text-white/40 hover:text-white flex items-center gap-1 pt-1 font-semibold transition-colors">+ Add Ecosystem Item</button>

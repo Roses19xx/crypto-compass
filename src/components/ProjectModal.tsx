@@ -1,8 +1,16 @@
 import { useState, useEffect } from "react";
-import { X, Twitter, Link as LinkIcon, Globe, Trash2, ChevronDown, Layers, Trash, Edit3, Save } from "lucide-react";
+import { X, Twitter, Link as LinkIcon, Globe, Trash2, ChevronDown, Layers, Trash, Edit3, Save, GripVertical } from "lucide-react";
 import { supabase } from "../supabase";
 
 const CATEGORIES = ["Prediction Markets", "Perp", "Chains", "AI", "NFT", "DePIN", "SocialFi", "GameFi"];
+const TIERS = ["S+", "1", "2", "3"];
+
+const tierBadgeStyles: Record<string, string> = {
+    "S+": "bg-[#FFB800]/10 border-[#FFB800]/30 text-[#FFB800] drop-shadow-[0_0_8px_rgba(255,184,0,0.5)]",
+    "1": "bg-[#00FF66]/10 border-[#00FF66]/30 text-[#00FF66] drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]",
+    "2": "bg-[#00E5FF]/10 border-[#00E5FF]/30 text-[#00E5FF] drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]",
+    "3": "bg-[#E4E4E7]/5 border-[#E4E4E7]/20 text-[#E4E4E7] drop-shadow-[0_0_6px_rgba(255,255,255,0.2)]",
+};
 
 interface ProjectModalProps {
     project: any;
@@ -17,8 +25,9 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
 
     const [editName, setEditName] = useState("");
     const [editCategory, setEditCategory] = useState("");
+    const [editTier, setEditTier] = useState("3");
     const [editLogo, setEditLogo] = useState("");
-    const [showLogoInput, setShowLogoInput] = useState(false); // Стейт для красивого инпута
+    const [showLogoInput, setShowLogoInput] = useState(false);
     const [editWebsite, setEditWebsite] = useState("");
     const [editTwitter, setEditTwitter] = useState("");
     const [editDiscord, setEditDiscord] = useState("");
@@ -29,6 +38,10 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         links: true,
         ecosystem: true,
     });
+
+    // СОСТОЯНИЯ ДЛЯ ПЕРЕТАСКИВАНИЯ
+    const [draggedLinkIndex, setDraggedLinkIndex] = useState<number | null>(null);
+    const [draggedEcoIndex, setDraggedEcoIndex] = useState<number | null>(null);
 
     useEffect(() => {
         if (project) {
@@ -42,6 +55,7 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
     const startEditing = () => {
         setEditName(localProject.name || "");
         setEditCategory(localProject.category || "");
+        setEditTier(localProject.tier || "3");
         setEditLogo(localProject.logo || "");
         setEditWebsite(localProject.website || "");
         setEditTwitter(localProject.twitter || "");
@@ -56,6 +70,38 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         setShowLogoInput(false);
     }
 
+    // ЛОГИКА DRAG & DROP
+    const handleDragStart = (e: React.DragEvent, index: number, type: 'link' | 'eco') => {
+        if (type === 'link') setDraggedLinkIndex(index);
+        else setDraggedEcoIndex(index);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (e: React.DragEvent, dropIndex: number, type: 'link' | 'eco') => {
+        e.preventDefault();
+        if (type === 'link' && draggedLinkIndex !== null) {
+            const newList = [...editAllLinks];
+            const [draggedItem] = newList.splice(draggedLinkIndex, 1);
+            newList.splice(dropIndex, 0, draggedItem);
+            setEditAllLinks(newList);
+            setDraggedLinkIndex(null);
+        } else if (type === 'eco' && draggedEcoIndex !== null) {
+            const newList = [...editEcosystem];
+            const [draggedItem] = newList.splice(draggedEcoIndex, 1);
+            newList.splice(dropIndex, 0, draggedItem);
+            setEditEcosystem(newList);
+            setDraggedEcoIndex(null);
+        }
+    };
+
+    const handleDragEnd = () => {
+        setDraggedLinkIndex(null);
+        setDraggedEcoIndex(null);
+    };
+
     const handleSaveChanges = async () => {
         if (!editName.trim()) {
             alert("Project Name is required!");
@@ -65,6 +111,7 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         const updatedData = {
             name: editName.trim(),
             category: editCategory || null,
+            tier: editTier,
             logo: editLogo.trim() || null,
             website: editWebsite.trim(),
             twitter: editTwitter.trim(),
@@ -121,6 +168,7 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
     };
 
     const currentLogo = isEditing ? editLogo : localProject.logo;
+    const currentTier = localProject.tier || "3";
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/40 backdrop-blur-md transition-opacity duration-300">
@@ -133,7 +181,6 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                 <div className="flex-shrink-0 px-8 pt-8 pb-6 border-b border-white/5">
                     <div className="flex items-start gap-6">
 
-                        {/* КЛИКАБЕЛЬНЫЙ КВАДРАТ И СТИЛИЗОВАННЫЙ ИНПУТ В РЕЖИМЕ РЕДАКТИРОВАНИЯ */}
                         <div className="relative flex-shrink-0">
                             <div
                                 onClick={() => isEditing && setShowLogoInput(!showLogoInput)}
@@ -147,7 +194,6 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                 )}
                             </div>
 
-                            {/* Красивый выпадающий инпут */}
                             {isEditing && showLogoInput && (
                                 <div className="absolute top-full left-0 mt-3 z-50 w-64 bg-[#141416] border border-white/10 rounded-2xl p-2 shadow-[0_20px_40px_rgba(0,0,0,0.8)]">
                                     <div className="flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-xl px-3 py-2.5 focus-within:border-white/20 transition-colors">
@@ -168,22 +214,38 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
 
                         <div className="flex flex-col justify-center pt-1 w-full">
                             {isEditing ? (
-                                <div className="flex gap-3 w-full max-w-md mb-6">
-                                    <input
-                                        type="text"
-                                        value={editName}
-                                        onChange={e => setEditName(e.target.value)}
-                                        className="flex-grow bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20"
-                                    />
-                                    <select
-                                        value={editCategory}
-                                        onChange={e => setEditCategory(e.target.value)}
-                                        className="w-1/3 bg-[#0a0a0c] border border-white/10 rounded-xl px-2 py-1.5 text-xs font-semibold text-white/70 outline-none focus:border-white/20 cursor-pointer"
-                                    >
-                                        <option value="">No Tag</option>
-                                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div>
+                                <>
+                                    <div className="flex gap-3 w-full max-w-md mb-3">
+                                        <input
+                                            type="text"
+                                            value={editName}
+                                            onChange={e => setEditName(e.target.value)}
+                                            className="flex-grow bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20"
+                                        />
+                                        <select
+                                            value={editCategory}
+                                            onChange={e => setEditCategory(e.target.value)}
+                                            className="w-1/3 bg-[#0a0a0c] border border-white/10 rounded-xl px-2 py-1.5 text-xs font-semibold text-white/70 outline-none focus:border-white/20 cursor-pointer"
+                                        >
+                                            <option value="">No Tag</option>
+                                            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 mb-5">
+                                        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mr-1">Project Tier:</span>
+                                        {TIERS.map(t => (
+                                            <button
+                                                key={t}
+                                                type="button"
+                                                onClick={() => setEditTier(t)}
+                                                className={`px-2.5 py-1 rounded-[8px] text-[10px] font-black tracking-wider transition-all border ${editTier === t ? "bg-white text-black border-transparent shadow-[0_0_10px_rgba(255,255,255,0.15)]" : "bg-white/5 text-white/40 border-white/10 hover:border-white/20 hover:text-white"}`}
+                                            >
+                                                TIER {t}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
                             ) : (
                                 <div className="flex items-center gap-3 mb-4">
                                     <h2 className="text-3xl font-bold text-white tracking-tight">{localProject.name}</h2>
@@ -192,6 +254,9 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                             {localProject.category}
                                         </span>
                                     )}
+                                    <span className={`px-2.5 py-1 border text-[10px] font-black uppercase rounded-lg tracking-widest flex-shrink-0 ${tierBadgeStyles[currentTier] || tierBadgeStyles["3"]}`}>
+                                        Tier {currentTier}
+                                    </span>
                                 </div>
                             )}
 
@@ -215,7 +280,7 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                         <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Discord</label>
                                         <div className="flex items-center gap-2 bg-transparent border border-white/10 rounded-xl px-3 py-2.5 focus-within:border-white/20 transition-colors">
                                             <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" /></svg>
-                                            <input type="text" placeholder="https://discord.gg/..." value={editDiscord} onChange={e => setEditDiscord(e.target.value)} className="bg-transparent text-xs text-white outline-none w-full placeholder-white/20" />
+                                            <input type="text" placeholder="https://discord.gg/..." value={editDiscord} onChange={e => setDiscord(e.target.value)} className="bg-transparent text-xs text-white outline-none w-full placeholder-white/20" />
                                         </div>
                                     </div>
                                 </div>
@@ -244,6 +309,8 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
 
                 <div className="overflow-y-auto px-8 pt-6 pb-8 space-y-5 custom-scrollbar">
                     <div className="bg-white/[0.02] border border-white/5 rounded-[24px] overflow-hidden flex flex-col">
+
+                        {/* ALL LINKS SECTION */}
                         <div className="border-b border-white/5 last:border-0 flex flex-col">
                             <button onClick={() => toggleSection('links')} className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors focus:outline-none">
                                 <div className="flex items-center gap-3">
@@ -257,14 +324,29 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                     {isEditing ? (
                                         <>
                                             {editAllLinks.map((link, i) => (
-                                                <div key={link.id} className="flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1">
+                                                <div
+                                                    key={link.id}
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(e, i, 'link')}
+                                                    onDragOver={handleDragOver}
+                                                    onDrop={(e) => handleDrop(e, i, 'link')}
+                                                    onDragEnd={handleDragEnd}
+                                                    className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedLinkIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
+                                                >
+                                                    {/* ИКОНКА DRAG & DROP */}
+                                                    <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
+                                                        <GripVertical className="w-4 h-4" />
+                                                    </div>
+
                                                     <input placeholder="Link Name" className="w-1/3 bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={link.title} onChange={e => {
                                                         const val = [...editAllLinks]; val[i].title = e.target.value; setEditAllLinks(val);
                                                     }} />
                                                     <input placeholder="URL" className="flex-grow bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={link.url} onChange={e => {
                                                         const val = [...editAllLinks]; val[i].url = e.target.value; setEditAllLinks(val);
                                                     }} />
-                                                    <button type="button" onClick={() => setEditAllLinks(editAllLinks.filter(l => l.id !== link.id))} className="text-red-500/50 hover:text-red-500 p-1 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                    <button type="button" onClick={() => setEditAllLinks(editAllLinks.filter(l => l.id !== link.id))} className="p-1 pr-2 text-red-500/50 hover:text-red-500 transition-colors">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
                                                 </div>
                                             ))}
                                             <button type="button" onClick={() => setEditAllLinks([...editAllLinks, { id: Date.now().toString(), title: '', url: '' }])} className="text-xs text-white/40 hover:text-white flex items-center gap-1 pt-1 font-semibold transition-colors">+ Add Link</button>
@@ -286,6 +368,7 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                             </div>
                         </div>
 
+                        {/* ECOSYSTEM SECTION */}
                         <div className="border-b border-white/5 last:border-0 flex flex-col">
                             <button onClick={() => toggleSection('ecosystem')} className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors focus:outline-none">
                                 <div className="flex items-center gap-3">
@@ -299,7 +382,20 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                     {isEditing ? (
                                         <>
                                             {editEcosystem.map((eco, i) => (
-                                                <div key={eco.id} className="flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1">
+                                                <div
+                                                    key={eco.id}
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(e, i, 'eco')}
+                                                    onDragOver={handleDragOver}
+                                                    onDrop={(e) => handleDrop(e, i, 'eco')}
+                                                    onDragEnd={handleDragEnd}
+                                                    className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedEcoIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
+                                                >
+                                                    {/* ИКОНКА DRAG & DROP */}
+                                                    <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
+                                                        <GripVertical className="w-4 h-4" />
+                                                    </div>
+
                                                     <input placeholder="Service" className="w-1/4 bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={eco.label} onChange={e => {
                                                         const val = [...editEcosystem]; val[i].label = e.target.value; setEditEcosystem(val);
                                                     }} />
@@ -309,7 +405,9 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                                     <input placeholder="URL" className="flex-grow bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={eco.url} onChange={e => {
                                                         const val = [...editEcosystem]; val[i].url = e.target.value; setEditEcosystem(val);
                                                     }} />
-                                                    <button type="button" onClick={() => setEditEcosystem(editEcosystem.filter(e => e.id !== eco.id))} className="text-red-500/50 hover:text-red-500 p-1 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                    <button type="button" onClick={() => setEditEcosystem(editEcosystem.filter(e => e.id !== eco.id))} className="p-1 pr-2 text-red-500/50 hover:text-red-500 transition-colors">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
                                                 </div>
                                             ))}
                                             <button type="button" onClick={() => setEditEcosystem([...editEcosystem, { id: Date.now().toString(), label: '', tag: '', url: '' }])} className="text-xs text-white/40 hover:text-white flex items-center gap-1 pt-1 font-semibold transition-colors">+ Add Ecosystem Item</button>
