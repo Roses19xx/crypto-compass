@@ -5,7 +5,7 @@ import { supabase } from "../supabase";
 const CATEGORIES = ["Prediction Markets", "Perp", "Chains", "AI", "NFT", "DePIN", "SocialFi", "GameFi"];
 const TIERS = ["S+", "1", "2", "3"];
 
-// ТВОЯ ПОЧТА - только она дает права на редактирование!
+// ТВОЯ ПОЧТА АДМИНА
 const ADMIN_EMAILS = ["douxxxpsg@gmail.com"];
 
 const tierBadgeStyles: Record<string, string> = {
@@ -19,11 +19,12 @@ interface ProjectModalProps {
     project: any;
     onClose: () => void;
     onUpdate?: (project: any) => void;
+    isWatchlistMode?: boolean; // НОВОЕ СВОЙСТВО: Откуда открыли модалку?
 }
 
-const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
+const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: ProjectModalProps) => {
     const [localProject, setLocalProject] = useState<any>(null);
-    const [isAdmin, setIsAdmin] = useState(false);
+    const [canEdit, setCanEdit] = useState(false); // Заменили isAdmin на canEdit
     const [isEditing, setIsEditing] = useState(false);
 
     const [editName, setEditName] = useState("");
@@ -42,7 +43,6 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         ecosystem: true,
     });
 
-    // СОСТОЯНИЯ ДЛЯ ПЕРЕТАСКИВАНИЯ
     const [draggedLinkIndex, setDraggedLinkIndex] = useState<number | null>(null);
     const [draggedEcoIndex, setDraggedEcoIndex] = useState<number | null>(null);
 
@@ -50,17 +50,24 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         if (project) {
             setLocalProject(JSON.parse(JSON.stringify(project)));
 
-            // ИСПРАВЛЕННАЯ ПРОВЕРКА АДМИНА
             supabase.auth.getSession().then(({ data: { session } }) => {
                 const userEmail = session?.user?.email;
-                if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
-                    setIsAdmin(true);
+
+                // УМНАЯ ПРОВЕРКА ПРАВ
+                if (isWatchlistMode) {
+                    // Если это Watchlist, редактировать может любой авторизованный юзер (это его копия)
+                    setCanEdit(!!session);
                 } else {
-                    setIsAdmin(false);
+                    // Если это Web3 Projects, редактировать может ТОЛЬКО админ
+                    if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
+                        setCanEdit(true);
+                    } else {
+                        setCanEdit(false);
+                    }
                 }
             });
         }
-    }, [project]);
+    }, [project, isWatchlistMode]);
 
     const startEditing = () => {
         setEditName(localProject.name || "");
@@ -80,15 +87,12 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
         setShowLogoInput(false);
     }
 
-    // ЛОГИКА DRAG & DROP
     const handleDragStart = (e: React.DragEvent, index: number, type: 'link' | 'eco') => {
         if (type === 'link') setDraggedLinkIndex(index);
         else setDraggedEcoIndex(index);
     };
 
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-    };
+    const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
     const handleDrop = (e: React.DragEvent, dropIndex: number, type: 'link' | 'eco') => {
         e.preventDefault();
@@ -130,7 +134,10 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
             ecosystem: editEcosystem.filter(e => e.label || e.url)
         };
 
-        const { error } = await supabase.from('projects').update(updatedData).eq('id', project.id);
+        // ВЫБИРАЕМ, КУДА СОХРАНЯТЬ
+        const tableName = isWatchlistMode ? 'user_watchlist' : 'projects';
+
+        const { error } = await supabase.from(tableName).update(updatedData).eq('id', project.id);
 
         if (error) {
             alert("Error saving: " + error.message);
@@ -143,8 +150,14 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
     };
 
     const handleDeleteProject = async () => {
-        if (window.confirm("Are you sure you want to delete this project permanently?")) {
-            await supabase.from('projects').delete().eq('id', project.id);
+        const message = isWatchlistMode
+            ? "Remove this project from your Watchlist?"
+            : "Are you sure you want to delete this project permanently?";
+
+        if (window.confirm(message)) {
+            // ВЫБИРАЕМ, ОТКУДА УДАЛЯТЬ
+            const tableName = isWatchlistMode ? 'user_watchlist' : 'projects';
+            await supabase.from(tableName).delete().eq('id', project.id);
             window.location.reload();
         }
     };
@@ -343,11 +356,9 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                                     onDragEnd={handleDragEnd}
                                                     className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedLinkIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
                                                 >
-                                                    {/* ИКОНКА DRAG & DROP */}
                                                     <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
                                                         <GripVertical className="w-4 h-4" />
                                                     </div>
-
                                                     <input placeholder="Link Name" className="w-1/3 bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={link.title} onChange={e => {
                                                         const val = [...editAllLinks]; val[i].title = e.target.value; setEditAllLinks(val);
                                                     }} />
@@ -401,11 +412,9 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                                     onDragEnd={handleDragEnd}
                                                     className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedEcoIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
                                                 >
-                                                    {/* ИКОНКА DRAG & DROP */}
                                                     <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
                                                         <GripVertical className="w-4 h-4" />
                                                     </div>
-
                                                     <input placeholder="Service" className="w-1/4 bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={eco.label} onChange={e => {
                                                         const val = [...editEcosystem]; val[i].label = e.target.value; setEditEcosystem(val);
                                                     }} />
@@ -436,7 +445,8 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
 
                     </div>
 
-                    {isAdmin && (
+                    {/* КНОПКИ РЕДАКТИРОВАНИЯ (ПОКАЗЫВАЮТСЯ ТОЛЬКО ЕСЛИ ЕСТЬ ПРАВА) */}
+                    {canEdit && (
                         <div className="flex justify-between items-center pt-4">
                             {isEditing ? (
                                 <div className="flex gap-2 w-full">
@@ -453,7 +463,8 @@ const ProjectModal = ({ project, onClose, onUpdate }: ProjectModalProps) => {
                                         <Edit3 size={14} /> Edit Project
                                     </button>
                                     <button onClick={handleDeleteProject} className="flex items-center gap-1.5 text-xs font-bold text-red-500/50 hover:text-red-500 bg-red-500/5 hover:bg-red-500/10 px-5 py-2.5 rounded-[12px] transition-all">
-                                        <Trash className="w-4 h-4" /> Delete Project
+                                        <Trash className="w-4 h-4" />
+                                        {isWatchlistMode ? "Remove from Watchlist" : "Delete Project"}
                                     </button>
                                 </div>
                             )}
