@@ -10,12 +10,13 @@ const CATEGORIES = ["Prediction Markets", "Perp", "Chains", "AI", "NFT", "DePIN"
 const ALL_FILTERS = ["All", ...CATEGORIES];
 const TIERS = ["All", "S+", "1", "2", "3"];
 
-// ТВОЯ ПОЧТА АДМИНА - только этот юзер сможет добавлять проекты
+// ТВОЯ ПОЧТА АДМИНА
 const ADMIN_EMAILS = ["douxxxpsg@gmail.com"];
 
 const Web3Projects = () => {
     const [projects, setProjects] = useState<any[]>([]);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [user, setUser] = useState<any>(null); // Текущий юзер
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const [activeFilter, setActiveFilter] = useState("All");
@@ -24,46 +25,83 @@ const Web3Projects = () => {
 
     const [selectedProject, setSelectedProject] = useState<any>(null);
 
-    const [watchlist, setWatchlist] = useState<any[]>(() => {
-        try {
-            const saved = localStorage.getItem('user_watchlist_objects');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            return [];
-        }
-    });
-
-    useEffect(() => {
-        localStorage.setItem('user_watchlist_objects', JSON.stringify(watchlist));
-    }, [watchlist]);
+    // Храним ID проектов, которые уже добавлены в Watchlist
+    const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
 
     const fetchProjects = async () => {
         const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
         if (!error && data) setProjects(data);
     };
 
+    const fetchWatchlistIds = async (userId: string) => {
+        const { data } = await supabase.from('user_watchlist').select('original_project_id').eq('user_id', userId);
+        if (data) {
+            setWatchlistIds(new Set(data.map(item => item.original_project_id)));
+        }
+    };
+
     useEffect(() => {
         fetchProjects();
-        // ИСПРАВЛЕННАЯ ЛОГИКА АДМИНА
+
         supabase.auth.getSession().then(({ data: { session } }) => {
-            const userEmail = session?.user?.email;
-            if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
-                setIsAdmin(true);
-            } else {
-                setIsAdmin(false);
+            const currentUser = session?.user;
+            setUser(currentUser || null);
+
+            if (currentUser) {
+                fetchWatchlistIds(currentUser.id);
+                if (currentUser.email && ADMIN_EMAILS.includes(currentUser.email)) {
+                    setIsAdmin(true);
+                } else {
+                    setIsAdmin(false);
+                }
             }
         });
     }, []);
 
-    const toggleWatchlist = (project: any) => {
-        setWatchlist(prev => {
-            const exists = prev.find(p => p.id === project.id);
-            if (exists) {
-                return prev.filter(p => p.id !== project.id);
-            } else {
-                return [...prev, project];
-            }
-        });
+    const toggleWatchlist = async (project: any) => {
+        if (!user) {
+            alert("Please sign in to add projects to your Watchlist!");
+            return;
+        }
+
+        const isAdded = watchlistIds.has(project.id);
+
+        if (isAdded) {
+            // Удаляем из Supabase (user_watchlist)
+            await supabase.from('user_watchlist')
+                .delete()
+                .eq('original_project_id', project.id)
+                .eq('user_id', user.id);
+
+            setWatchlistIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(project.id);
+                return newSet;
+            });
+        } else {
+            // Добавляем КОПИЮ в Supabase (user_watchlist)
+            const newWatchlistItem = {
+                user_id: user.id,
+                original_project_id: project.id,
+                name: project.name,
+                category: project.category,
+                tier: project.tier,
+                logo: project.logo,
+                website: project.website,
+                twitter: project.twitter,
+                discord: project.discord,
+                allLinks: project.allLinks || [],
+                ecosystem: project.ecosystem || []
+            };
+
+            await supabase.from('user_watchlist').insert([newWatchlistItem]);
+
+            setWatchlistIds(prev => {
+                const newSet = new Set(prev);
+                newSet.add(project.id);
+                return newSet;
+            });
+        }
     };
 
     const tierPriority: Record<string, number> = { "S+": 1, "1": 2, "2": 3, "3": 4 };
@@ -142,7 +180,7 @@ const Web3Projects = () => {
                                     e.stopPropagation();
                                     toggleWatchlist(project);
                                 }}
-                                isAdded={watchlist.some(p => p.id === project.id)}
+                                isAdded={watchlistIds.has(project.id)}
                             />
                         ))}
                     </div>
@@ -168,6 +206,7 @@ const Web3Projects = () => {
                     <ProjectModal
                         project={selectedProject}
                         onClose={() => setSelectedProject(null)}
+                        isWatchlistMode={false} // Глобальный режим
                         onUpdate={(updatedProject) => {
                             setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
                             setSelectedProject(updatedProject);

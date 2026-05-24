@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { supabase } from "../supabase";
 import ProjectCard from "../components/ProjectCard";
-import AdminProjectForm from "../components/AdminProjectForm";
 import ProjectModal from "../components/ProjectModal";
 import Navbar from "../components/Navbar";
 
@@ -10,40 +10,40 @@ const ALL_FILTERS = ["All", ...CATEGORIES];
 const TIERS = ["All", "S+", "1", "2", "3"];
 
 const Watchlist = () => {
-  // Грузим проекты целиком из памяти
-  const [localProjects, setLocalProjects] = useState<any[]>(() => {
-    try {
-      const saved = localStorage.getItem('user_watchlist_objects');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  const [localProjects, setLocalProjects] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
 
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeTier, setActiveTier] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [selectedProject, setSelectedProject] = useState<any>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Сохраняем в память при любом изменении списка
+  // Загружаем проекты из личной БД Supabase
+  const fetchUserWatchlist = async () => {
+    const { data, error } = await supabase.from('user_watchlist').select('*').order('created_at', { ascending: false });
+    if (!error && data) {
+      setLocalProjects(data);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem('user_watchlist_objects', JSON.stringify(localProjects));
-  }, [localProjects]);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        fetchUserWatchlist();
+      }
+    });
+  }, []);
 
-  const removeFromWatchlist = (projectId: string) => {
+  const removeFromWatchlist = async (projectId: string) => {
+    await supabase.from('user_watchlist').delete().eq('id', projectId);
     setLocalProjects(prev => prev.filter(p => p.id !== projectId));
   };
 
   const handleUpdateProject = (updatedProject: any) => {
     setLocalProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
     setSelectedProject(updatedProject);
-  };
-
-  const handleAddCustomProject = (newProject: any) => {
-    setLocalProjects(prev => [newProject, ...prev]);
-    setIsAddModalOpen(false);
   };
 
   const tierPriority: Record<string, number> = { "S+": 1, "1": 2, "2": 3, "3": 4 };
@@ -61,6 +61,18 @@ const Watchlist = () => {
       const weightB = tierPriority[b.tier || "3"] || 99;
       return weightA - weightB;
     });
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white" style={{ background: 'radial-gradient(circle at 50% 0%, #232328 0%, #0a0a0c 60%, #000000 100%)' }}>
+        <Navbar />
+        <div className="text-center bg-[#141416]/50 border border-white/5 p-10 rounded-[24px] backdrop-blur-md">
+          <h2 className="text-2xl font-bold mb-2">Sign in required</h2>
+          <p className="text-white/40">Please sign in to view and manage your personal Watchlist.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden text-white" style={{ background: 'radial-gradient(circle at 50% 0%, #232328 0%, #0a0a0c 60%, #000000 100%)', backgroundAttachment: 'fixed' }}>
@@ -80,14 +92,6 @@ const Watchlist = () => {
                 className="h-[44px] w-full bg-[#141416] border border-white/5 rounded-xl pl-11 pr-4 text-sm font-medium text-white placeholder-[#a1a1aa] outline-none focus:border-white/20 focus:bg-[#1a1a1e] transition-all shadow-sm"
               />
             </div>
-
-            {/* Кнопка доступна ВСЕМ юзерам, так как это их локальный список */}
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="h-[44px] bg-[#32D74B]/10 hover:bg-[#32D74B]/20 border border-[#32D74B]/30 text-[#32D74B] px-6 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 whitespace-nowrap shadow-[0_0_15px_rgba(50,215,75,0.05)]"
-            >
-              <Plus className="w-4 h-4" /> Add Personal Project
-            </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
@@ -119,35 +123,23 @@ const Watchlist = () => {
                   e.stopPropagation();
                   removeFromWatchlist(project.id);
                 }}
-                isAdded={true} // В ватчлисте они всегда добавлены
+                isAdded={true}
               />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center border border-white/5 rounded-[24px] bg-[#141416]/50 backdrop-blur-md">
             <h3 className="text-white/80 font-semibold mb-1">Your Watchlist is empty</h3>
-            <p className="text-white/40 text-sm">Add projects from the main database or create your own!</p>
+            <p className="text-white/40 text-sm">Add projects from the Web3 Projects database!</p>
           </div>
-        )}
-
-        {isAddModalOpen && (
-          <AdminProjectForm
-            isLocalMode={true} // Указываем форме, что сохраняем локально!
-            onClose={() => setIsAddModalOpen(false)}
-            onSuccess={handleAddCustomProject}
-          />
         )}
 
         {selectedProject && (
           <ProjectModal
             project={selectedProject}
-            isLocalMode={true} // Указываем модалке, что это локальный файл!
+            isWatchlistMode={true} // МАГИЯ ЗДЕСЬ! Включаем редактирование для пользователя
             onClose={() => setSelectedProject(null)}
             onUpdate={handleUpdateProject}
-            onDelete={() => {
-              removeFromWatchlist(selectedProject.id);
-              setSelectedProject(null);
-            }}
           />
         )}
       </div>
