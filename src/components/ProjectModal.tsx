@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { X, Twitter, Link as LinkIcon, Globe, Trash2, ChevronDown, Layers, Trash, Edit3, Save, GripVertical } from "lucide-react";
+import { X, Twitter, Link as LinkIcon, Globe, Trash2, ChevronDown, Layers, Trash, Edit3, Save, GripVertical, Calendar, Plus, Check, ListTodo } from "lucide-react";
 import { supabase } from "../supabase";
 
 const CATEGORIES = ["Prediction Markets", "Perp", "Chains", "AI", "NFT", "DePIN", "SocialFi", "GameFi"];
 const TIERS = ["S+", "1", "2", "3"];
 
-// ТВОЯ ПОЧТА АДМИНА
 const ADMIN_EMAILS = ["douxxxpsg@gmail.com"];
 
 const tierBadgeStyles: Record<string, string> = {
@@ -19,12 +18,12 @@ interface ProjectModalProps {
     project: any;
     onClose: () => void;
     onUpdate?: (project: any) => void;
-    isWatchlistMode?: boolean; // НОВОЕ СВОЙСТВО: Откуда открыли модалку?
+    isWatchlistMode?: boolean;
 }
 
 const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: ProjectModalProps) => {
     const [localProject, setLocalProject] = useState<any>(null);
-    const [canEdit, setCanEdit] = useState(false); // Заменили isAdmin на canEdit
+    const [canEdit, setCanEdit] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
     const [editName, setEditName] = useState("");
@@ -37,14 +36,17 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
     const [editDiscord, setEditDiscord] = useState("");
     const [editAllLinks, setEditAllLinks] = useState<any[]>([]);
     const [editEcosystem, setEditEcosystem] = useState<any[]>([]);
+    const [editTasks, setEditTasks] = useState<any[]>([]);
 
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-        links: true,
-        ecosystem: true,
+        tasks: false,
+        links: false,
+        ecosystem: false,
     });
 
     const [draggedLinkIndex, setDraggedLinkIndex] = useState<number | null>(null);
     const [draggedEcoIndex, setDraggedEcoIndex] = useState<number | null>(null);
+    const [draggedTaskIndex, setDraggedTaskIndex] = useState<number | null>(null);
 
     useEffect(() => {
         if (project) {
@@ -52,13 +54,9 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
 
             supabase.auth.getSession().then(({ data: { session } }) => {
                 const userEmail = session?.user?.email;
-
-                // УМНАЯ ПРОВЕРКА ПРАВ
                 if (isWatchlistMode) {
-                    // Если это Watchlist, редактировать может любой авторизованный юзер (это его копия)
                     setCanEdit(!!session);
                 } else {
-                    // Если это Web3 Projects, редактировать может ТОЛЬКО админ
                     if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
                         setCanEdit(true);
                     } else {
@@ -79,6 +77,7 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
         setEditDiscord(localProject.discord || "");
         setEditAllLinks(localProject.allLinks || []);
         setEditEcosystem(localProject.ecosystem || []);
+        setEditTasks(localProject.tasks || []);
         setIsEditing(true);
     };
 
@@ -87,14 +86,15 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
         setShowLogoInput(false);
     }
 
-    const handleDragStart = (e: React.DragEvent, index: number, type: 'link' | 'eco') => {
+    const handleDragStart = (e: React.DragEvent, index: number, type: 'link' | 'eco' | 'task') => {
         if (type === 'link') setDraggedLinkIndex(index);
-        else setDraggedEcoIndex(index);
+        else if (type === 'eco') setDraggedEcoIndex(index);
+        else setDraggedTaskIndex(index);
     };
 
     const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
-    const handleDrop = (e: React.DragEvent, dropIndex: number, type: 'link' | 'eco') => {
+    const handleDrop = (e: React.DragEvent, dropIndex: number, type: 'link' | 'eco' | 'task') => {
         e.preventDefault();
         if (type === 'link' && draggedLinkIndex !== null) {
             const newList = [...editAllLinks];
@@ -108,12 +108,33 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
             newList.splice(dropIndex, 0, draggedItem);
             setEditEcosystem(newList);
             setDraggedEcoIndex(null);
+        } else if (type === 'task' && draggedTaskIndex !== null) {
+            const newList = [...editTasks];
+            const [draggedItem] = newList.splice(draggedTaskIndex, 1);
+            newList.splice(dropIndex, 0, draggedItem);
+            setEditTasks(newList);
+            setDraggedTaskIndex(null);
         }
     };
 
     const handleDragEnd = () => {
         setDraggedLinkIndex(null);
         setDraggedEcoIndex(null);
+        setDraggedTaskIndex(null);
+    };
+
+    const toggleTaskCompletion = async (taskId: string) => {
+        if (!canEdit) return;
+
+        const updatedTasks = (localProject.tasks || []).map((t: any) =>
+            t.id === taskId ? { ...t, completed: !t.completed } : t
+        );
+
+        setLocalProject({ ...localProject, tasks: updatedTasks });
+        if (onUpdate) onUpdate({ ...localProject, tasks: updatedTasks });
+
+        const tableName = isWatchlistMode ? 'user_watchlist' : 'projects';
+        await supabase.from(tableName).update({ tasks: updatedTasks }).eq('id', project.id);
     };
 
     const handleSaveChanges = async () => {
@@ -131,12 +152,11 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
             twitter: editTwitter.trim(),
             discord: editDiscord.trim(),
             allLinks: editAllLinks.filter(l => l.title || l.url),
-            ecosystem: editEcosystem.filter(e => e.label || e.url)
+            ecosystem: editEcosystem.filter(e => e.label || e.url),
+            tasks: editTasks.filter(t => t.title.trim())
         };
 
-        // ВЫБИРАЕМ, КУДА СОХРАНЯТЬ
         const tableName = isWatchlistMode ? 'user_watchlist' : 'projects';
-
         const { error } = await supabase.from(tableName).update(updatedData).eq('id', project.id);
 
         if (error) {
@@ -155,7 +175,6 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
             : "Are you sure you want to delete this project permanently?";
 
         if (window.confirm(message)) {
-            // ВЫБИРАЕМ, ОТКУДА УДАЛЯТЬ
             const tableName = isWatchlistMode ? 'user_watchlist' : 'projects';
             await supabase.from(tableName).delete().eq('id', project.id);
             window.location.reload();
@@ -169,7 +188,7 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
     };
 
     const getParsedLinkInfo = (link: any) => {
-        let icon = <Globe className="w-5 h-5 text-white/50" />;
+        let icon = <Globe className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" />;
         let displayTitle = link.title;
 
         try {
@@ -177,13 +196,13 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
             const hostname = urlObj.hostname.toLowerCase();
 
             if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
-                icon = <Twitter className="w-5 h-5 text-[#1DA1F2]" fill="currentColor" />;
+                icon = <Twitter className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" fill="currentColor" />;
             } else if (hostname.includes('discord.gg') || hostname.includes('discord.com')) {
-                icon = <svg className="w-5 h-5 text-[#5865F2]" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" /></svg>;
+                icon = <svg className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" /></svg>;
             } else if (hostname.includes('t.me') || hostname.includes('telegram.org')) {
-                icon = <svg className="w-5 h-5 text-[#229ED9]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12s12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.94z" /></svg>;
+                icon = <svg className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12s12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.94z" /></svg>;
             } else if (hostname.includes('github.com')) {
-                icon = <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57C20.565 21.795 24 17.31 24 12c0-6.63-5.37-12-12-12z" /></svg>;
+                icon = <svg className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57C20.565 21.795 24 17.31 24 12c0-6.63-5.37-12-12-12z" /></svg>;
             }
         } catch (e) { }
 
@@ -194,8 +213,8 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
     const currentTier = localProject.tier || "3";
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/40 backdrop-blur-md transition-opacity duration-300">
-            <div className="relative w-full max-w-3xl max-h-[90vh] bg-[#0a0a0c] border border-white/10 rounded-[32px] overflow-hidden flex flex-col shadow-[0_0_80px_rgba(0,0,0,0.8)]" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pb-4 pt-20 sm:pt-24 sm:px-6 sm:pb-6 bg-black/40 backdrop-blur-md transition-opacity duration-300">
+            <div className="relative w-full max-w-3xl max-h-[calc(100vh-6rem)] sm:max-h-[85vh] bg-[#0a0a0c] border border-white/10 rounded-[32px] overflow-hidden flex flex-col shadow-[0_0_80px_rgba(0,0,0,0.8)]" onClick={(e) => e.stopPropagation()}>
 
                 <button onClick={onClose} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all z-10">
                     <X className="w-4 h-4" />
@@ -310,18 +329,18 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
                             ) : (
                                 <div className="flex items-center gap-5">
                                     {localProject.website && (
-                                        <a href={localProject.website} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-xs font-medium uppercase tracking-wider">
-                                            <Globe className="w-3.5 h-3.5" /> Website
+                                        <a href={localProject.website} target="_blank" rel="noreferrer" className="group flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-xs font-medium uppercase tracking-wider">
+                                            <Globe className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" /> Website
                                         </a>
                                     )}
                                     {localProject.twitter && (
-                                        <a href={localProject.twitter} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-xs font-medium uppercase tracking-wider">
-                                            <Twitter className="w-3.5 h-3.5" /> Twitter
+                                        <a href={localProject.twitter} target="_blank" rel="noreferrer" className="group flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-xs font-medium uppercase tracking-wider">
+                                            <Twitter className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" /> Twitter
                                         </a>
                                     )}
                                     {localProject.discord && (
-                                        <a href={localProject.discord} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-xs font-medium uppercase tracking-wider">
-                                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" /></svg> Discord
+                                        <a href={localProject.discord} target="_blank" rel="noreferrer" className="group flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-xs font-medium uppercase tracking-wider">
+                                            <svg className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" /></svg> Discord
                                         </a>
                                     )}
                                 </div>
@@ -330,139 +349,283 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
                     </div>
                 </div>
 
-                <div className="overflow-y-auto px-8 pt-6 pb-8 space-y-5 custom-scrollbar">
-                    <div className="bg-white/[0.02] border border-white/5 rounded-[24px] overflow-hidden flex flex-col">
+                <div className="overflow-y-auto px-6 sm:px-8 pt-6 pb-6 space-y-4 custom-scrollbar">
 
-                        {/* ALL LINKS SECTION */}
-                        <div className="border-b border-white/5 last:border-0 flex flex-col">
-                            <button onClick={() => toggleSection('links')} className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors focus:outline-none">
-                                <div className="flex items-center gap-3">
-                                    <LinkIcon className="w-4 h-4 text-white/50" />
-                                    <span className="text-sm font-semibold text-white/90">All Links</span>
-                                </div>
-                                <ChevronDown className={`w-4 h-4 text-white/30 transition-transform duration-300 ${openSections.links ? "rotate-180" : ""}`} />
-                            </button>
-                            <div className={`grid transition-all duration-300 ease-in-out ${openSections.links ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
-                                <div className="overflow-hidden px-5 pb-4 space-y-2">
+                    {/* РАЗДЕЛ TASKS: Теперь это полностью отдельная карточка */}
+                    <div className="bg-[#121214] border border-white/10 rounded-[24px] overflow-hidden flex flex-col">
+                        <button onClick={() => toggleSection('tasks')} className="w-full flex items-center justify-between px-6 py-5 hover:bg-white/[0.02] transition-colors focus:outline-none">
+                            <div className="flex items-center gap-3">
+                                <ListTodo className="w-5 h-5 text-white/50" />
+                                <span className="text-lg font-semibold text-white tracking-tight">Tasks</span>
+                            </div>
+                            <ChevronDown className={`w-5 h-5 text-white/40 transition-transform duration-300 ${openSections.tasks ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {/* Решение проблемы наложения (overlap): паддинги находятся ВНУТРИ overflow-hidden контейнера */}
+                        <div className={`grid transition-all duration-300 ease-in-out ${openSections.tasks ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                            <div className="overflow-hidden">
+                                <div className="px-6 pb-6 pt-2 space-y-3">
                                     {isEditing ? (
                                         <>
-                                            {editAllLinks.map((link, i) => (
+                                            {editTasks.map((task, i) => (
                                                 <div
-                                                    key={link.id}
+                                                    key={task.id}
                                                     draggable
-                                                    onDragStart={(e) => handleDragStart(e, i, 'link')}
+                                                    onDragStart={(e) => handleDragStart(e, i, 'task')}
                                                     onDragOver={handleDragOver}
-                                                    onDrop={(e) => handleDrop(e, i, 'link')}
+                                                    onDrop={(e) => handleDrop(e, i, 'task')}
                                                     onDragEnd={handleDragEnd}
-                                                    className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedLinkIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
+                                                    className={`flex flex-col gap-3 bg-white/[0.03] border border-white/5 rounded-[16px] p-4 transition-all ${draggedTaskIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
                                                 >
-                                                    <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
-                                                        <GripVertical className="w-4 h-4" />
+                                                    <div className="flex items-center gap-3 w-full">
+                                                        <div className="cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
+                                                            <GripVertical className="w-4 h-4" />
+                                                        </div>
+                                                        <input
+                                                            placeholder="Task Title..."
+                                                            className="flex-grow min-w-0 bg-transparent text-sm text-white outline-none placeholder-white/30 font-medium"
+                                                            value={task.title}
+                                                            onChange={e => {
+                                                                const val = [...editTasks]; val[i].title = e.target.value; setEditTasks(val);
+                                                            }}
+                                                        />
+
+                                                        <div className="relative flex items-center justify-center bg-white/[0.04] border border-white/5 rounded-[10px] h-9 px-3 hover:bg-white/[0.08] transition-colors shrink-0 cursor-pointer overflow-hidden group">
+                                                            <Calendar className="w-4 h-4 text-white/50 group-hover:text-white/80 transition-colors" />
+                                                            {task.date && (
+                                                                <span className="ml-2 text-xs text-white/70 font-medium whitespace-nowrap">{task.date}</span>
+                                                            )}
+                                                            <input
+                                                                type="date"
+                                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                                value={task.date || ""}
+                                                                onChange={e => {
+                                                                    const val = [...editTasks]; val[i].date = e.target.value; setEditTasks(val);
+                                                                }}
+                                                            />
+                                                        </div>
+
+                                                        <button type="button" onClick={() => setEditTasks(editTasks.filter(t => t.id !== task.id))} className="w-9 h-9 flex items-center justify-center rounded-[10px] text-red-500/50 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
                                                     </div>
-                                                    <input placeholder="Link Name" className="w-1/3 bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={link.title} onChange={e => {
-                                                        const val = [...editAllLinks]; val[i].title = e.target.value; setEditAllLinks(val);
-                                                    }} />
-                                                    <input placeholder="URL" className="flex-grow bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={link.url} onChange={e => {
-                                                        const val = [...editAllLinks]; val[i].url = e.target.value; setEditAllLinks(val);
-                                                    }} />
-                                                    <button type="button" onClick={() => setEditAllLinks(editAllLinks.filter(l => l.id !== link.id))} className="p-1 pr-2 text-red-500/50 hover:text-red-500 transition-colors">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+
+                                                    <div className="flex items-center gap-3 pl-7 w-full border-t border-white/5 pt-3">
+                                                        <LinkIcon className="w-3.5 h-3.5 text-white/20 shrink-0" />
+                                                        <input
+                                                            placeholder="https://... (optional link)"
+                                                            className="w-full bg-transparent text-xs text-white/40 outline-none placeholder-white/20"
+                                                            value={task.url || ""}
+                                                            onChange={e => {
+                                                                const val = [...editTasks]; val[i].url = e.target.value; setEditTasks(val);
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             ))}
-                                            <button type="button" onClick={() => setEditAllLinks([...editAllLinks, { id: Date.now().toString(), title: '', url: '' }])} className="text-xs text-white/40 hover:text-white flex items-center gap-1 pt-1 font-semibold transition-colors">+ Add Link</button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditTasks([...editTasks, { id: Date.now().toString(), title: '', url: '', date: '', completed: false }])}
+                                                className="w-full py-3.5 mt-2 rounded-[16px] border border-dashed border-white/10 text-white/50 hover:text-white hover:bg-white/[0.02] hover:border-white/20 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                                            >
+                                                <Plus className="w-4 h-4" /> Add Task
+                                            </button>
                                         </>
                                     ) : (
-                                        (localProject.allLinks || []).map((link: any) => {
-                                            const { icon, title } = getParsedLinkInfo(link);
-                                            return (
-                                                <a key={link.id} href={link.url} target="_blank" rel="noreferrer" className="group flex items-center gap-4 bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 rounded-[20px] p-3 transition-all w-full">
-                                                    <div className="w-10 h-10 rounded-[12px] bg-white/[0.04] flex items-center justify-center flex-shrink-0 border border-white/5">
-                                                        {icon}
+                                        <div className="space-y-3">
+                                            {(localProject.tasks || []).length === 0 && (
+                                                <p className="text-sm text-white/30 italic px-2">No tasks added yet.</p>
+                                            )}
+                                            {(localProject.tasks || []).map((task: any) => (
+                                                <div key={task.id} className={`group flex items-center gap-4 bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 rounded-[16px] p-3.5 transition-all w-full ${task.completed ? 'opacity-50' : ''}`}>
+                                                    <button onClick={() => toggleTaskCompletion(task.id)} className={`shrink-0 flex items-center justify-center w-5 h-5 rounded-[6px] border-[1.5px] transition-colors ${task.completed ? 'bg-white border-white' : 'border-white/30 group-hover:border-white/60'}`}>
+                                                        {task.completed && <Check className="w-3.5 h-3.5 text-black stroke-[3]" />}
+                                                    </button>
+                                                    <div className="flex flex-col min-w-0 justify-center">
+                                                        {task.url ? (
+                                                            <a href={task.url} target="_blank" rel="noreferrer" className={`text-[15px] font-medium hover:underline truncate ${task.completed ? 'text-white/50 line-through' : 'text-white/90'}`}>
+                                                                {task.title}
+                                                            </a>
+                                                        ) : (
+                                                            <span className={`text-[15px] font-medium truncate ${task.completed ? 'text-white/50 line-through' : 'text-white/90'}`}>
+                                                                {task.title}
+                                                            </span>
+                                                        )}
+                                                        {task.date && (
+                                                            <div className="flex items-center gap-1.5 mt-1 text-[12px] text-white/40 font-medium">
+                                                                <Calendar className="w-3 h-3" />
+                                                                <span>{task.date}</span>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <span className="text-sm font-semibold text-white/90 truncate">{title}</span>
-                                                </a>
-                                            );
-                                        })
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* ECOSYSTEM SECTION */}
-                        <div className="border-b border-white/5 last:border-0 flex flex-col">
-                            <button onClick={() => toggleSection('ecosystem')} className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors focus:outline-none">
+                        {/* РАЗДЕЛ LINKS: Отдельная карточка */}
+                        <div className="bg-[#121214] border border-white/10 rounded-[24px] overflow-hidden flex flex-col">
+                            <button onClick={() => toggleSection('links')} className="w-full flex items-center justify-between px-6 py-5 hover:bg-white/[0.02] transition-colors focus:outline-none">
                                 <div className="flex items-center gap-3">
-                                    <Layers className="w-4 h-4 text-white/50" />
-                                    <span className="text-sm font-semibold text-white/90">Ecosystem</span>
+                                    <LinkIcon className="w-5 h-5 text-white/50" />
+                                    <span className="text-lg font-semibold text-white tracking-tight">All Links</span>
                                 </div>
-                                <ChevronDown className={`w-4 h-4 text-white/30 transition-transform duration-300 ${openSections.ecosystem ? "rotate-180" : ""}`} />
+                                <ChevronDown className={`w-5 h-5 text-white/40 transition-transform duration-300 ${openSections.links ? "rotate-180" : ""}`} />
+                            </button>
+                            <div className={`grid transition-all duration-300 ease-in-out ${openSections.links ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                                <div className="overflow-hidden">
+                                    <div className="px-6 pb-6 pt-2 space-y-3">
+                                        {isEditing ? (
+                                            <>
+                                                {editAllLinks.map((link, i) => (
+                                                    <div
+                                                        key={link.id}
+                                                        draggable
+                                                        onDragStart={(e) => handleDragStart(e, i, 'link')}
+                                                        onDragOver={handleDragOver}
+                                                        onDrop={(e) => handleDrop(e, i, 'link')}
+                                                        onDragEnd={handleDragEnd}
+                                                        className={`flex items-center gap-3 bg-white/[0.03] border border-white/5 rounded-[16px] p-4 transition-all ${draggedLinkIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
+                                                    >
+                                                        <div className="cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
+                                                            <GripVertical className="w-4 h-4" />
+                                                        </div>
+
+                                                        <input placeholder="Link Name" className="w-1/3 bg-transparent text-sm text-white outline-none placeholder-white/30 font-medium" value={link.title} onChange={e => {
+                                                            const val = [...editAllLinks]; val[i].title = e.target.value; setEditAllLinks(val);
+                                                        }} />
+                                                        <input placeholder="URL" className="flex-grow bg-transparent text-xs text-white outline-none placeholder-white/30" value={link.url} onChange={e => {
+                                                            const val = [...editAllLinks]; val[i].url = e.target.value; setEditAllLinks(val);
+                                                        }} />
+                                                        <button type="button" onClick={() => setEditAllLinks(editAllLinks.filter(l => l.id !== link.id))} className="w-9 h-9 flex items-center justify-center rounded-[10px] text-red-500/50 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditAllLinks([...editAllLinks, { id: Date.now().toString(), title: '', url: '' }])}
+                                                    className="w-full py-3.5 mt-2 rounded-[16px] border border-dashed border-white/10 text-white/50 hover:text-white hover:bg-white/[0.02] hover:border-white/20 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                                                >
+                                                    <Plus className="w-4 h-4" /> Add Link
+                                                </button>
+                                            </>
+                                        ) : (
+                                            (localProject.allLinks || []).length === 0 ? (
+                                                <p className="text-sm text-white/30 italic px-2">No additional links.</p>
+                                            ) : (
+                                                (localProject.allLinks || []).map((link: any) => {
+                                                    const { icon, title } = getParsedLinkInfo(link);
+                                                    return (
+                                                        <a key={link.id} href={link.url} target="_blank" rel="noreferrer" className="group flex items-center gap-4 bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 rounded-[16px] p-3 transition-all w-full">
+                                                            <div className="w-10 h-10 rounded-[12px] bg-white/[0.04] border border-white/5 flex items-center justify-center shrink-0">
+                                                                {icon}
+                                                            </div>
+                                                            <span className="text-[15px] font-medium text-white/90 truncate">{title}</span>
+                                                        </a>
+                                                    );
+                                                })
+                                            )
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* РАЗДЕЛ ECOSYSTEM: Отдельная карточка */}
+                        <div className="bg-[#121214] border border-white/10 rounded-[24px] overflow-hidden flex flex-col">
+                            <button onClick={() => toggleSection('ecosystem')} className="w-full flex items-center justify-between px-6 py-5 hover:bg-white/[0.02] transition-colors focus:outline-none">
+                                <div className="flex items-center gap-3">
+                                    <Layers className="w-5 h-5 text-white/50" />
+                                    <span className="text-lg font-semibold text-white tracking-tight">Ecosystem</span>
+                                </div>
+                                <ChevronDown className={`w-5 h-5 text-white/40 transition-transform duration-300 ${openSections.ecosystem ? "rotate-180" : ""}`} />
                             </button>
                             <div className={`grid transition-all duration-300 ease-in-out ${openSections.ecosystem ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
-                                <div className="overflow-hidden px-5 pb-4 space-y-2">
-                                    {isEditing ? (
-                                        <>
-                                            {editEcosystem.map((eco, i) => (
-                                                <div
-                                                    key={eco.id}
-                                                    draggable
-                                                    onDragStart={(e) => handleDragStart(e, i, 'eco')}
-                                                    onDragOver={handleDragOver}
-                                                    onDrop={(e) => handleDrop(e, i, 'eco')}
-                                                    onDragEnd={handleDragEnd}
-                                                    className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedEcoIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
-                                                >
-                                                    <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
-                                                        <GripVertical className="w-4 h-4" />
+                                <div className="overflow-hidden">
+                                    <div className="px-6 pb-6 pt-2 space-y-3">
+                                        {isEditing ? (
+                                            <>
+                                                {editEcosystem.map((eco, i) => (
+                                                    <div
+                                                        key={eco.id}
+                                                        draggable
+                                                        onDragStart={(e) => handleDragStart(e, i, 'eco')}
+                                                        onDragOver={handleDragOver}
+                                                        onDrop={(e) => handleDrop(e, i, 'eco')}
+                                                        onDragEnd={handleDragEnd}
+                                                        className={`flex items-center gap-3 bg-white/[0.03] border border-white/5 rounded-[16px] p-4 transition-all ${draggedEcoIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
+                                                    >
+                                                        <div className="cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
+                                                            <GripVertical className="w-4 h-4" />
+                                                        </div>
+                                                        <input placeholder="Service" className="w-1/4 bg-transparent text-sm text-white outline-none placeholder-white/30 font-medium" value={eco.label} onChange={e => {
+                                                            const val = [...editEcosystem]; val[i].label = e.target.value; setEditEcosystem(val);
+                                                        }} />
+                                                        <input placeholder="Tag" className="w-1/5 bg-transparent text-xs text-white outline-none placeholder-white/30" value={eco.tag} onChange={e => {
+                                                            const val = [...editEcosystem]; val[i].tag = e.target.value; setEditEcosystem(val);
+                                                        }} />
+                                                        <input placeholder="URL" className="flex-grow bg-transparent text-xs text-white outline-none placeholder-white/30" value={eco.url} onChange={e => {
+                                                            const val = [...editEcosystem]; val[i].url = e.target.value; setEditEcosystem(val);
+                                                        }} />
+                                                        <button type="button" onClick={() => setEditEcosystem(editEcosystem.filter(e => e.id !== eco.id))} className="w-9 h-9 flex items-center justify-center rounded-[10px] text-red-500/50 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
                                                     </div>
-                                                    <input placeholder="Service" className="w-1/4 bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={eco.label} onChange={e => {
-                                                        const val = [...editEcosystem]; val[i].label = e.target.value; setEditEcosystem(val);
-                                                    }} />
-                                                    <input placeholder="Tag" className="w-1/5 bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={eco.tag} onChange={e => {
-                                                        const val = [...editEcosystem]; val[i].tag = e.target.value; setEditEcosystem(val);
-                                                    }} />
-                                                    <input placeholder="URL" className="flex-grow bg-transparent text-xs text-white outline-none px-2 py-1 placeholder-white/30" value={eco.url} onChange={e => {
-                                                        const val = [...editEcosystem]; val[i].url = e.target.value; setEditEcosystem(val);
-                                                    }} />
-                                                    <button type="button" onClick={() => setEditEcosystem(editEcosystem.filter(e => e.id !== eco.id))} className="p-1 pr-2 text-red-500/50 hover:text-red-500 transition-colors">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            <button type="button" onClick={() => setEditEcosystem([...editEcosystem, { id: Date.now().toString(), label: '', tag: '', url: '' }])} className="text-xs text-white/40 hover:text-white flex items-center gap-1 pt-1 font-semibold transition-colors">+ Add Ecosystem Item</button>
-                                        </>
-                                    ) : (
-                                        (localProject.ecosystem || []).map((eco: any) => (
-                                            <a key={eco.id} href={eco.url} target="_blank" rel="noreferrer" className="flex items-center justify-between bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 rounded-[20px] p-4 transition-all w-full">
-                                                <span className="text-sm font-semibold text-white/90 truncate">{eco.label}</span>
-                                                {eco.tag && <span className="px-3 py-1 bg-white/5 border border-white/10 text-white/50 text-[10px] uppercase font-bold rounded-lg tracking-wider flex-shrink-0">{eco.tag}</span>}
-                                            </a>
-                                        ))
-                                    )}
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditEcosystem([...editEcosystem, { id: Date.now().toString(), label: '', tag: '', url: '' }])}
+                                                    className="w-full py-3.5 mt-2 rounded-[16px] border border-dashed border-white/10 text-white/50 hover:text-white hover:bg-white/[0.02] hover:border-white/20 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                                                >
+                                                    <Plus className="w-4 h-4" /> Add Ecosystem Item
+                                                </button>
+                                            </>
+                                        ) : (
+                                            (localProject.ecosystem || []).length === 0 ? (
+                                                <p className="text-sm text-white/30 italic px-2">No ecosystem services added.</p>
+                                            ) : (
+                                                (localProject.ecosystem || []).map((eco: any) => (
+                                                    <a key={eco.id} href={eco.url} target="_blank" rel="noreferrer" className="group flex items-center justify-between gap-4 bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 rounded-[16px] p-3 transition-all w-full">
+                                                        <div className="flex items-center gap-4 min-w-0">
+                                                            <div className="w-10 h-10 rounded-[12px] bg-white/[0.04] border border-white/5 flex items-center justify-center shrink-0">
+                                                                <Layers className="w-5 h-5 text-white/50 opacity-50 group-hover:opacity-100 transition-opacity" />
+                                                            </div>
+                                                            <span className="text-[15px] font-medium text-white/90 truncate">{eco.label}</span>
+                                                        </div>
+                                                        {eco.tag && <span className="px-3 py-1 bg-white/5 border border-white/10 text-white/50 text-[10px] uppercase font-bold rounded-lg tracking-wider shrink-0">{eco.tag}</span>}
+                                                    </a>
+                                                ))
+                                            )
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                     </div>
 
-                    {/* КНОПКИ РЕДАКТИРОВАНИЯ (ПОКАЗЫВАЮТСЯ ТОЛЬКО ЕСЛИ ЕСТЬ ПРАВА) */}
                     {canEdit && (
-                        <div className="flex justify-between items-center pt-4">
+                        <div className="flex justify-between items-center pt-2 pb-2">
                             {isEditing ? (
-                                <div className="flex gap-2 w-full">
-                                    <button onClick={handleSaveChanges} className="flex-1 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 border border-white/10">
-                                        <Save size={14} /> Save Changes
+                                <div className="flex gap-3 w-full">
+                                    <button onClick={handleSaveChanges} className="flex-1 bg-white hover:bg-gray-200 text-black py-3 rounded-[14px] font-bold text-sm transition-all shadow-[0_2px_10px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2">
+                                        <Save size={16} /> Save Changes
                                     </button>
-                                    <button onClick={cancelEditing} className="bg-white/5 hover:bg-white/10 text-white/50 px-4 rounded-xl font-medium text-xs transition-all">
+                                    <button onClick={cancelEditing} className="bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 px-6 py-3 rounded-[14px] font-semibold text-sm transition-all">
                                         Cancel
                                     </button>
                                 </div>
                             ) : (
                                 <div className="flex justify-between w-full items-center">
-                                    <button onClick={startEditing} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-5 py-2.5 rounded-[12px] font-bold text-xs transition-all flex items-center gap-1.5">
-                                        <Edit3 size={14} /> Edit Project
+                                    <button onClick={startEditing} className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-5 py-2.5 rounded-[12px] font-semibold text-sm transition-all flex items-center gap-2">
+                                        <Edit3 size={16} /> Edit Project
                                     </button>
-                                    <button onClick={handleDeleteProject} className="flex items-center gap-1.5 text-xs font-bold text-red-500/50 hover:text-red-500 bg-red-500/5 hover:bg-red-500/10 px-5 py-2.5 rounded-[12px] transition-all">
+                                    <button onClick={handleDeleteProject} className="flex items-center gap-2 text-sm font-semibold text-red-500/60 hover:text-red-500 bg-red-500/5 hover:bg-red-500/10 px-5 py-2.5 rounded-[12px] transition-all">
                                         <Trash className="w-4 h-4" />
                                         {isWatchlistMode ? "Remove from Watchlist" : "Delete Project"}
                                     </button>
@@ -478,6 +641,8 @@ const ProjectModal = ({ project, onClose, onUpdate, isWatchlistMode = false }: P
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.1); border-radius: 10px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.2); }
+                input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; cursor: pointer; }
+                input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 0.8; }
             `}</style>
         </div>
     );
