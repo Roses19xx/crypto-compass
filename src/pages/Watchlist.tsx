@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { supabase } from "../supabase";
 import ProjectCard from "../components/ProjectCard";
 import ProjectModal from "../components/ProjectModal";
+import AdminProjectForm from "../components/AdminProjectForm";
 import Navbar from "../components/Navbar";
 
 const CATEGORIES = ["Prediction Markets", "Perp", "Chains", "AI", "NFT", "DePIN", "SocialFi", "GameFi"];
@@ -18,6 +19,7 @@ const Watchlist = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // Вернули состояние для модалки
 
   const fetchUserWatchlist = async () => {
     const { data, error } = await supabase.from('user_watchlist').select('*').order('created_at', { ascending: false });
@@ -90,6 +92,14 @@ const Watchlist = () => {
                 className="h-[44px] w-full bg-[#141416] border border-white/5 rounded-xl pl-11 pr-4 text-sm font-medium text-white placeholder-[#a1a1aa] outline-none focus:border-white/20 focus:bg-[#1a1a1e] transition-all shadow-sm"
               />
             </div>
+
+            {/* ВЕРНУЛИ КНОПКУ ДОБАВЛЕНИЯ ЛИЧНОГО ПРОЕКТА */}
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="h-[44px] bg-[#32D74B]/10 hover:bg-[#32D74B]/20 border border-[#32D74B]/30 text-[#32D74B] px-6 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 whitespace-nowrap shadow-[0_0_15px_rgba(50,215,75,0.05)]"
+            >
+              <Plus className="w-4 h-4" /> Add Personal Project
+            </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
@@ -128,8 +138,20 @@ const Watchlist = () => {
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center border border-white/5 rounded-[24px] bg-[#141416]/50 backdrop-blur-md">
             <h3 className="text-white/80 font-semibold mb-1">Your Watchlist is empty</h3>
-            <p className="text-white/40 text-sm">Add projects from the Web3 Projects database!</p>
+            <p className="text-white/40 text-sm">Add projects from the Web3 Projects database or create your own!</p>
           </div>
+        )}
+
+        {/* ВЫЗЫВАЕМ ФОРМУ СОЗДАНИЯ С ПАРАМЕТРОМ isWatchlistMode */}
+        {isAddModalOpen && (
+          <AdminProjectForm
+            isWatchlistMode={true}
+            onClose={() => setIsAddModalOpen(false)}
+            onSuccess={() => {
+              setIsAddModalOpen(false);
+              fetchUserWatchlist(); // Обновляем список после добавления
+            }}
+          />
         )}
 
         {selectedProject && (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Twitter, Link as LinkIcon, Globe, Trash2, ChevronDown, Layers, GripVertical } from "lucide-react";
 import { supabase } from "../supabase";
 
@@ -8,9 +8,10 @@ const TIERS = ["S+", "1", "2", "3"];
 interface AdminProjectFormProps {
     onClose: () => void;
     onSuccess: () => void;
+    isWatchlistMode?: boolean; // Флаг: сохраняем в личную базу или в общую?
 }
 
-const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
+const AdminProjectForm = ({ onClose, onSuccess, isWatchlistMode = false }: AdminProjectFormProps) => {
     const [name, setName] = useState("");
     const [category, setCategory] = useState("");
     const [tier, setTier] = useState("3");
@@ -23,27 +24,36 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
     const [ecosystem, setEcosystem] = useState<any[]>([]);
     const [isPublishing, setIsPublishing] = useState(false);
 
+    const [userId, setUserId] = useState<string | null>(null);
+
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({
         links: true,
         ecosystem: true,
     });
 
-    // СОСТОЯНИЯ ДЛЯ ПЕРЕТАСКИВАНИЯ (DRAG & DROP)
     const [draggedLinkIndex, setDraggedLinkIndex] = useState<number | null>(null);
     const [draggedEcoIndex, setDraggedEcoIndex] = useState<number | null>(null);
+
+    // Получаем ID пользователя при загрузке формы
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                setUserId(session.user.id);
+            }
+        });
+    }, []);
 
     const toggleSection = (section: string) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
 
-    // ЛОГИКА DRAG & DROP
     const handleDragStart = (e: React.DragEvent, index: number, type: 'link' | 'eco') => {
         if (type === 'link') setDraggedLinkIndex(index);
         else setDraggedEcoIndex(index);
     };
 
     const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault(); // Обязательно для разрешения сброса
+        e.preventDefault();
     };
 
     const handleDrop = (e: React.DragEvent, dropIndex: number, type: 'link' | 'eco') => {
@@ -74,9 +84,14 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
             return;
         }
 
+        if (isWatchlistMode && !userId) {
+            alert("Please sign in to add a personal project.");
+            return;
+        }
+
         setIsPublishing(true);
 
-        const newProject = {
+        const newProject: any = {
             name: name.trim(),
             category: category || null,
             tier: tier,
@@ -88,7 +103,15 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
             ecosystem: ecosystem.filter(e => e.label || e.url),
         };
 
-        const { error } = await supabase.from('projects').insert([newProject]);
+        // Если это личный проект, привязываем его к ID юзера
+        if (isWatchlistMode) {
+            newProject.user_id = userId;
+        }
+
+        // Выбираем таблицу в зависимости от режима
+        const tableName = isWatchlistMode ? 'user_watchlist' : 'projects';
+
+        const { error } = await supabase.from(tableName).insert([newProject]);
 
         setIsPublishing(false);
 
@@ -225,7 +248,6 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                                             onDragEnd={handleDragEnd}
                                             className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedLinkIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
                                         >
-                                            {/* ИКОНКА DRAG & DROP */}
                                             <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
                                                 <GripVertical className="w-4 h-4" />
                                             </div>
@@ -268,7 +290,6 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                                             onDragEnd={handleDragEnd}
                                             className={`flex items-center gap-2 bg-[#0a0a0c] border border-white/5 rounded-[12px] p-1 transition-all ${draggedEcoIndex === i ? 'opacity-30 scale-[0.98] border-white/20' : ''}`}
                                         >
-                                            {/* ИКОНКА DRAG & DROP */}
                                             <div className="pl-1 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors">
                                                 <GripVertical className="w-4 h-4" />
                                             </div>
@@ -296,7 +317,7 @@ const AdminProjectForm = ({ onClose, onSuccess }: AdminProjectFormProps) => {
                     </div>
 
                     <button onClick={handlePublish} disabled={isPublishing} className="w-full bg-white/10 hover:bg-white/20 text-white py-3.5 rounded-xl font-bold text-sm transition-all border border-white/10 disabled:opacity-50 mt-4">
-                        {isPublishing ? "Publishing..." : "Publish Project"}
+                        {isPublishing ? (isWatchlistMode ? "Adding..." : "Publishing...") : (isWatchlistMode ? "Add to Watchlist" : "Publish Project")}
                     </button>
                 </div>
             </div>
