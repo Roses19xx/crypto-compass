@@ -19,7 +19,6 @@ const Watchlist = () => {
 
   const [selectedProject, setSelectedProject] = useState<any>(null);
 
-  // Загружаем проекты из личной БД Supabase
   const fetchUserWatchlist = async () => {
     const { data, error } = await supabase.from('user_watchlist').select('*').order('created_at', { ascending: false });
     if (!error && data) {
@@ -80,7 +79,6 @@ const Watchlist = () => {
 
       <div className="w-full pt-24 pb-20 px-6 sm:px-10 lg:px-16 relative z-10">
         <div className="flex flex-col gap-5 mb-10 w-full">
-
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
             <div className="relative w-full sm:max-w-md">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -137,7 +135,7 @@ const Watchlist = () => {
         {selectedProject && (
           <ProjectModal
             project={selectedProject}
-            isWatchlistMode={true} // МАГИЯ ЗДЕСЬ! Включаем редактирование для пользователя
+            isWatchlistMode={true}
             onClose={() => setSelectedProject(null)}
             onUpdate={handleUpdateProject}
           />

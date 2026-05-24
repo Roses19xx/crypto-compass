@@ -10,13 +10,12 @@ const CATEGORIES = ["Prediction Markets", "Perp", "Chains", "AI", "NFT", "DePIN"
 const ALL_FILTERS = ["All", ...CATEGORIES];
 const TIERS = ["All", "S+", "1", "2", "3"];
 
-// ТВОЯ ПОЧТА АДМИНА
 const ADMIN_EMAILS = ["douxxxpsg@gmail.com"];
 
 const Web3Projects = () => {
     const [projects, setProjects] = useState<any[]>([]);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [user, setUser] = useState<any>(null); // Текущий юзер
+    const [user, setUser] = useState<any>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const [activeFilter, setActiveFilter] = useState("All");
@@ -24,8 +23,6 @@ const Web3Projects = () => {
     const [searchQuery, setSearchQuery] = useState("");
 
     const [selectedProject, setSelectedProject] = useState<any>(null);
-
-    // Храним ID проектов, которые уже добавлены в Watchlist
     const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
 
     const fetchProjects = async () => {
@@ -67,11 +64,15 @@ const Web3Projects = () => {
         const isAdded = watchlistIds.has(project.id);
 
         if (isAdded) {
-            // Удаляем из Supabase (user_watchlist)
-            await supabase.from('user_watchlist')
+            const { error } = await supabase.from('user_watchlist')
                 .delete()
                 .eq('original_project_id', project.id)
                 .eq('user_id', user.id);
+
+            if (error) {
+                alert("Database Error (Delete): " + error.message);
+                return;
+            }
 
             setWatchlistIds(prev => {
                 const newSet = new Set(prev);
@@ -79,22 +80,27 @@ const Web3Projects = () => {
                 return newSet;
             });
         } else {
-            // Добавляем КОПИЮ в Supabase (user_watchlist)
             const newWatchlistItem = {
                 user_id: user.id,
                 original_project_id: project.id,
                 name: project.name,
-                category: project.category,
-                tier: project.tier,
-                logo: project.logo,
-                website: project.website,
-                twitter: project.twitter,
-                discord: project.discord,
+                category: project.category || null,
+                tier: project.tier || "3",
+                logo: project.logo || null,
+                website: project.website || null,
+                twitter: project.twitter || null,
+                discord: project.discord || null,
                 allLinks: project.allLinks || [],
                 ecosystem: project.ecosystem || []
             };
 
-            await supabase.from('user_watchlist').insert([newWatchlistItem]);
+            const { error } = await supabase.from('user_watchlist').insert([newWatchlistItem]);
+
+            if (error) {
+                alert("Database Error (Insert): " + error.message);
+                console.error(error);
+                return;
+            }
 
             setWatchlistIds(prev => {
                 const newSet = new Set(prev);
@@ -126,7 +132,6 @@ const Web3Projects = () => {
 
             <div className="w-full pt-24 pb-20 px-6 sm:px-10 lg:px-16 relative z-10">
                 <div className="flex flex-col gap-5 mb-10 w-full">
-
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
                         <div className="relative w-full sm:max-w-md">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -166,7 +171,6 @@ const Web3Projects = () => {
                             ))}
                         </div>
                     </div>
-
                 </div>
 
                 {filteredProjects.length > 0 ? (
@@ -206,7 +210,7 @@ const Web3Projects = () => {
                     <ProjectModal
                         project={selectedProject}
                         onClose={() => setSelectedProject(null)}
-                        isWatchlistMode={false} // Глобальный режим
+                        isWatchlistMode={false}
                         onUpdate={(updatedProject) => {
                             setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
                             setSelectedProject(updatedProject);
