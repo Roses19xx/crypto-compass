@@ -1,5 +1,5 @@
 import Navbar from "@/components/Navbar";
-import { LayoutGrid, ArrowRightLeft, Landmark, ArrowUpRight, ListTodo } from "lucide-react";
+import { LayoutGrid, ArrowRightLeft, Landmark, ArrowUpRight, ListTodo, Briefcase } from "lucide-react";
 import { AdminLogin } from '../components/AdminLogin';
 
 const Index = () => {
@@ -12,7 +12,8 @@ const Index = () => {
       icon: <ListTodo className="w-8 h-8 sm:w-10 sm:h-10 text-white" strokeWidth={1.5} />,
       link: "/watchlist",
       isActive: true,
-      imgUrl: "https://images.unsplash.com/photo-1557672172-298e090bd0f1?auto=format&fit=crop&q=80&w=1000",
+      // Темная абстрактная сетка/данные
+      imgUrl: "https://images.unsplash.com/photo-1614064641913-a520faff3ebb?auto=format&fit=crop&q=80&w=1000",
       gradient: "from-[#0a0a0c] via-[#0a0a0c]/40 to-transparent",
     },
     {
@@ -23,7 +24,20 @@ const Index = () => {
       icon: <LayoutGrid className="w-8 h-8 sm:w-10 sm:h-10 text-white" strokeWidth={1.5} />,
       link: "/web3-projects",
       isActive: true,
-      imgUrl: "https://images.unsplash.com/photo-1639762681485-074b7f4ec6d6?auto=format&fit=crop&q=80&w=1000",
+      // Темные блокчейн-ноды
+      imgUrl: "https://images.unsplash.com/photo-1639322537228-f710d846310a?auto=format&fit=crop&q=80&w=1000",
+      gradient: "from-[#0a0a0c] via-[#0a0a0c]/40 to-transparent",
+    },
+    {
+      title: "Jobs",
+      subtitle: "Discover Web3 careers and remote opportunities",
+      badge: "New",
+      badgeStyle: "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30",
+      icon: <Briefcase className="w-8 h-8 sm:w-10 sm:h-10 text-white" strokeWidth={1.5} />,
+      link: "/jobs",
+      isActive: true,
+      // Абстрактная темная геометрия
+      imgUrl: "https://images.unsplash.com/photo-1633265486064-086b219458ce?auto=format&fit=crop&q=80&w=1000",
       gradient: "from-[#0a0a0c] via-[#0a0a0c]/40 to-transparent",
     },
     {
@@ -33,8 +47,9 @@ const Index = () => {
       badgeStyle: "bg-purple-500/20 text-purple-300 border-purple-500/30",
       icon: <Landmark className="w-8 h-8 sm:w-10 sm:h-10 text-white" strokeWidth={1.5} />,
       link: "#",
-      isActive: false, // Пока не активно, можно изменить на true, когда добавите страницу
-      imgUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=1000",
+      isActive: false,
+      // Темные 3D кубы
+      imgUrl: "https://images.unsplash.com/photo-1642104704074-907c0698cbd9?auto=format&fit=crop&q=80&w=1000",
       gradient: "from-[#0a0a0c] via-[#0a0a0c]/50 to-transparent",
     },
     {
@@ -44,8 +59,9 @@ const Index = () => {
       badgeStyle: "bg-orange-500/20 text-orange-300 border-orange-500/30",
       icon: <ArrowRightLeft className="w-8 h-8 sm:w-10 sm:h-10 text-white" strokeWidth={1.5} />,
       link: "#",
-      isActive: false, // Пока не активно
-      imgUrl: "https://images.unsplash.com/photo-1620321023374-d1a68fbc720d?auto=format&fit=crop&q=80&w=1000",
+      isActive: false,
+      // Абстрактные темные волны
+      imgUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1000",
       gradient: "from-[#0a0a0c] via-[#0a0a0c]/50 to-transparent",
     },
   ];
@@ -61,8 +77,6 @@ const Index = () => {
       <Navbar />
 
       <main className="flex-grow mx-auto w-full max-w-7xl px-6 py-12 sm:py-20 flex flex-col justify-center">
-        {/* Заголовок удален! Сетка центрируется на странице */}
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {cards.map((card, index) => (
             <a
